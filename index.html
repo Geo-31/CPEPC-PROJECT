@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StudyHub</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="session-controls" aria-label="Demo session">
+        <span id="session-identity">Signed in as Student</span>
+        <label for="active-role">Demo role</label>
+        <select id="active-role">
+          <option value="USER">User</option>
+          <option value="STAFF">Staff</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+      <p id="permission-message" role="status" aria-live="polite" hidden></p>
+      <form id="search-form" role="search">
+        <label class="sr-only" for="global-search">Search tasks</label>
+        <input
+          id="global-search"
+          name="query"
+          type="search"
+          placeholder="Search tasks"
+          autocomplete="off"
+        />
+      </form>
+
+      <button type="button" id="focus-toggle" aria-pressed="false">
+        Focus mode
+      </button>
+    </header>
+
+    <nav class="primary-nav" aria-label="Primary">
+      <ul>
+        <li>
+          <a
+            href="#dashboard"
+            data-permission="dashboard:view"
+            aria-current="page"
+            >Dashboard</a
+          >
+        </li>
+        <li><a href="#tasks" data-permission="tasks:view">Tasks</a></li>
+        <li>
+          <a href="#schedules" data-permission="schedules:view">Schedules</a>
+        </li>
+        <li><a href="#notes" data-permission="notes:view">Notes</a></li>
+        <li>
+          <a href="#expenses" data-permission="expenses:view">Expenses</a>
+        </li>
+        <li><a href="#focus" data-permission="focus:view">Focus</a></li>
+        <li>
+          <a href="#settings" data-permission="settings:manage">Settings</a>
+        </li>
+      </ul>
+    </nav>
+
+    <main id="app">
+      <section id="dashboard" aria-labelledby="dashboard-title">
+        <h2 id="dashboard-title">Dashboard</h2>
+
+        <!-- Unit 3 summary values are rendered from JavaScript state. -->
+        <section id="dash-priority" class="dashboard-metric">
+          <h3>Total tasks</h3>
+          <strong id="summary-total">0</strong>
+        </section>
+
+        <section id="dash-tomorrow" class="dashboard-metric">
+          <h3>Completed</h3>
+          <strong id="summary-completed">0</strong>
+        </section>
+
+        <section id="dash-notes" class="dashboard-metric">
+          <h3>Upcoming</h3>
+          <strong id="summary-upcoming">0 due within 7 days</strong>
+        </section>
+
+        <section id="dash-expenses" class="dashboard-metric">
+          <h3>Top priority</h3>
+          <strong id="summary-priority">No pending tasks</strong>
+        </section>
+
+        <section id="dash-focus" class="dashboard-metric">
+          <h3>Estimated study time</h3>
+          <strong id="summary-study-time">0.0 hours</strong>
+        </section>
+
+        <!-- The leader's task form is retained as the ONE authoritative task form. -->
+        <div
+          id="task-error-summary"
+          class="dashboard-wide"
+          role="alert"
+          hidden
+        ></div>
+
+        <form
+          id="task-form"
+          class="dashboard-wide"
+          data-permission="record:create"
+          novalidate
+        >
+          <div>
+            <label for="task-title">Task title</label>
+            <input
+              type="text"
+              id="task-title"
+              name="title"
+              placeholder="e.g. Finish lab report"
+              required
+            />
+          </div>
+
+          <div>
+            <label for="task-due">Due date</label>
+            <input type="date" id="task-due" name="dueDate" />
+          </div>
+
+          <div>
+            <label for="task-priority">Priority</label>
+            <select id="task-priority" name="priority">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="task-subject">Subject</label>
+            <input
+              type="text"
+              id="task-subject"
+              name="subject"
+              placeholder="e.g. Calculus II"
+              required
+            />
+          </div>
+
+          <div>
+            <label for="task-notes">Notes</label>
+            <input
+              type="text"
+              id="task-notes"
+              name="notes"
+              placeholder="Optional details"
+            />
+          </div>
+
+          <button type="submit">Add task</button>
+        </form>
+      </section>
+
+      <section id="tasks" aria-labelledby="tasks-title" hidden>
+        <h2 id="tasks-title">Tasks</h2>
+        <p id="workflow-message" role="status" aria-live="polite" hidden></p>
+
+        <section class="content-card" aria-labelledby="task-controls-title">
+          <h3 id="task-controls-title">Task controls</h3>
+
+          <form id="task-controls">
+            <div>
+              <label for="status-filter">Status</label>
+              <select id="status-filter">
+                <option value="ALL">All</option>
+                <option value="Planned">Planned</option>
+                <option value="Ready">Ready</option>
+                <option value="In Progress">In progress</option>
+                <option value="In Review">In review</option>
+                <option value="Blocked">Blocked</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="priority-filter">Priority</label>
+              <select id="priority-filter">
+                <option value="ALL">All</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="sort-key">Sort by</label>
+              <select id="sort-key">
+                <option value="dueDate">Due date</option>
+                <option value="title">Title</option>
+                <option value="subject">Subject</option>
+                <option value="priority">Priority</option>
+                <option value="createdAt">Created date</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="sort-direction">Direction</label>
+              <select id="sort-direction">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="page-size">Rows per page</label>
+              <select id="page-size">
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+              </select>
+            </div>
+          </form>
+        </section>
+
+        <section id="task-list" aria-labelledby="task-list-title">
+          <h3 id="task-list-title">Task list</h3>
+          <p id="task-result-count" aria-live="polite"></p>
+
+          <div class="table-wrapper">
+            <table>
+              <caption>
+                StudyHub task records
+              </caption>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Task</th>
+                  <th>Subject</th>
+                  <th>Due</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Derived state</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="task-table-body"></tbody>
+            </table>
+          </div>
+
+          <div id="task-pagination" aria-label="Task pagination"></div>
+        </section>
+
+        <p id="task-empty-state" hidden>
+          No tasks match the current search or filters.
+        </p>
+
+        <aside
+          id="task-details"
+          class="content-card"
+          aria-labelledby="task-details-title"
+        >
+          <h3 id="task-details-title">Task details</h3>
+          <p>Select a task to inspect its full record.</p>
+        </aside>
+        <p class="authorization-note">
+          Demo only: role checks in this front-end are for interface behavior,
+          not secure authorization. Real authorization must be enforced by a
+          trusted back end.
+        </p>
+      </section>
+
+      <section id="schedules" aria-labelledby="schedules-title" hidden>
+        <h2 id="schedules-title">Schedules</h2>
+        <div class="content-card">
+          <h3>DCPET 2-2 Class Schedule</h3>
+          <div class="table-wrapper">
+            <table>
+              <caption>
+                Weekly class schedule
+              </caption>
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Time</th>
+                  <th>Class</th>
+                  <th>Course code</th>
+                  <th>Instructor</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="rowgroup" rowspan="2">Monday</th>
+                  <td>10:30 AM–11:30 AM</td>
+                  <td>Computer Engineering as a Discipline</td>
+                  <td>CMPE 101</td>
+                  <td>Prof. Ryan Evangelista</td>
+                </tr>
+                <tr>
+                  <td>1:30 PM–4:30 PM</td>
+                  <td>Filipinolohiya at Pambansang Kaunlaran</td>
+                  <td>GEED 032</td>
+                  <td>Prof. Jhonley Cubacub</td>
+                </tr>
+                <tr>
+                  <th scope="rowgroup" rowspan="3">Tuesday</th>
+                  <td>7:30 AM–10:30 AM</td>
+                  <td>2D Animation</td>
+                  <td>CPET 201</td>
+                  <td>Prof. Jerome De Guzman</td>
+                </tr>
+                <tr>
+                  <td>10:30 AM–1:30 PM</td>
+                  <td>Data Structures and Algorithms</td>
+                  <td>CMPE 201</td>
+                  <td>Prof. Mylo Atencio</td>
+                </tr>
+                <tr>
+                  <td>3:00 PM–6:00 PM</td>
+                  <td>Fundamentals of Electronic Circuits</td>
+                  <td>ECEN 011</td>
+                  <td>TBA</td>
+                </tr>
+                <tr>
+                  <th scope="rowgroup" rowspan="3">Wednesday</th>
+                  <td>10:00 AM–1:00 PM</td>
+                  <td>Discrete Mathematics</td>
+                  <td>CMPE 104</td>
+                  <td>Prof. Mylo Atencio</td>
+                </tr>
+                <tr>
+                  <td>1:00 PM–4:00 PM</td>
+                  <td>Fundamentals of Electrical Circuits</td>
+                  <td>ELEN 012</td>
+                  <td>Prof. Ronald Fernando</td>
+                </tr>
+                <tr>
+                  <td>4:30 PM–6:30 PM</td>
+                  <td>Physical Activity Towards Health and Fitness 3</td>
+                  <td>PATHFIT 3</td>
+                  <td>Prof. Remus Laglagaron</td>
+                </tr>
+                <tr>
+                  <th scope="row">Thursday</th>
+                  <td colspan="4">No classes</td>
+                </tr>
+                <tr>
+                  <th scope="rowgroup" rowspan="4">Friday</th>
+                  <td>7:30 AM–10:30 AM</td>
+                  <td>2D Animation</td>
+                  <td>CPET 201</td>
+                  <td>Prof. Jerome De Guzman</td>
+                </tr>
+                <tr>
+                  <td>10:30 AM–1:30 PM</td>
+                  <td>Data Structures and Algorithms</td>
+                  <td>CMPE 201</td>
+                  <td>Prof. Mylo Atencio</td>
+                </tr>
+                <tr>
+                  <td>3:00 PM–6:00 PM</td>
+                  <td>Fundamentals of Electronic Circuits</td>
+                  <td>ECEN 011</td>
+                  <td>TBA</td>
+                </tr>
+                <tr>
+                  <td>6:00 PM–9:00 PM</td>
+                  <td>CPE Professional Course 1</td>
+                  <td>CMPE-PC1</td>
+                  <td>Prof. Jose Marie Dipay</td>
+                </tr>
+                <tr>
+                  <th scope="rowgroup" rowspan="2">Saturday</th>
+                  <td>7:30 AM–10:30 AM</td>
+                  <td>Fundamentals of Electrical Circuits</td>
+                  <td>ELEN 012</td>
+                  <td>Prof. Ronald Fernando</td>
+                </tr>
+                <tr>
+                  <td>12:00 PM–2:00 PM</td>
+                  <td>CPE Professional Course 1</td>
+                  <td>CMPE-PC1</td>
+                  <td>Prof. Jose Marie Dipay</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="notes" aria-labelledby="notes-title" hidden>
+        <h2 id="notes-title">Notes</h2>
+        <div class="content-card">
+          <h3>Study notes</h3>
+          <article class="info-entry">
+            <h4>Electrical circuits</h4>
+            <p>
+              For a series circuit, the same current flows through every
+              component. Add the resistances to find the total resistance.
+            </p>
+            <p class="section-note">Review before the next problem set.</p>
+          </article>
+          <article class="info-entry">
+            <h4>Data structures</h4>
+            <p>
+              A linked list stores items in nodes. Each node points to the next
+              node, so inserting or removing an item does not require shifting
+              every later item.
+            </p>
+            <p class="section-note">Remember to trace the pointer changes.</p>
+          </article>
+          <article class="info-entry">
+            <h4>Web development</h4>
+            <p>
+              Use semantic HTML elements to describe the purpose of each part of
+              a page, and keep form labels connected to their controls.
+            </p>
+            <p class="section-note">Unit 1 review</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="expenses" aria-labelledby="expenses-title" hidden>
+        <h2 id="expenses-title">Expenses</h2>
+        <div class="content-card">
+          <h3>Sample weekly expenses</h3>
+          <div class="table-wrapper">
+            <table>
+              <caption>
+                Example expense log
+              </caption>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Item</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Monday</td>
+                  <td>Bus fare</td>
+                  <td>Transport</td>
+                  <td>$3.00</td>
+                </tr>
+                <tr>
+                  <td>Tuesday</td>
+                  <td>Lunch</td>
+                  <td>Food</td>
+                  <td>$8.50</td>
+                </tr>
+                <tr>
+                  <td>Wednesday</td>
+                  <td>Printed readings</td>
+                  <td>School supplies</td>
+                  <td>$2.25</td>
+                </tr>
+                <tr>
+                  <td>Thursday</td>
+                  <td>Bus fare</td>
+                  <td>Transport</td>
+                  <td>$3.00</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="3" scope="row">Sample total</th>
+                  <td>$16.75</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p class="section-note">Example figures for demonstration only.</p>
+        </div>
+      </section>
+
+      <section id="focus" aria-labelledby="focus-title" hidden>
+        <h2 id="focus-title">Focus</h2>
+        <div class="content-card focus-panel">
+          <p>
+            Distraction-free study view is active while Focus mode is enabled.
+          </p>
+        </div>
+      </section>
+
+      <section id="settings" aria-labelledby="settings-title" hidden>
+        <h2 id="settings-title">Settings</h2>
+        <div class="content-card">
+          <h3>Authorization demo</h3>
+          <p>
+            Switch roles in the header to demonstrate permission-based
+            navigation and task actions. This role selector is not
+            authentication.
+          </p>
+          <div class="table-wrapper permission-matrix">
+            <table>
+              <caption>
+                Demo role permission matrix
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Capability</th>
+                  <th scope="col">User</th>
+                  <th scope="col">Staff</th>
+                  <th scope="col">Admin</th>
+                </tr>
+              </thead>
+              <tbody id="permission-matrix-body"></tbody>
+            </table>
+          </div>
+          <p class="section-note">
+            Record visibility, ownership, and workflow state are checked in
+            addition to these role capability grants.
+          </p>
+          <p class="authorization-note">
+            Client-side permission checks can be bypassed. A trusted back end
+            must verify every identity, role, and record-level permission before
+            accessing or changing protected data.
+          </p>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- UNIT 8 & 9: Data Management & Metrics -->
+      <!-- ========================================== -->
+      <section id="system-data" class="content-card" aria-labelledby="system-data-title">
+        <h3 id="system-data-title">Unit 8: Persistence, Backup, & Audit Trail</h3>
+        <p class="section-note">Survives page refresh via versioned localStorage schema, provides safe imports, and records state mutations.</p>
+        
+        <div id="storage-status-message" role="status" aria-live="polite" hidden></div>
+
+        <div class="persistence-controls">
+          <button type="button" id="btn-export-json">Export JSON</button>
+          
+          <label for="import-json-file" class="button-file-label">Select JSON to Import</label>
+          <input type="file" id="import-json-file" accept=".json" class="sr-only" />
+
+          <button type="button" id="btn-reset-data" class="btn-danger">Reset to Defaults</button>
+        </div>
+
+        <div id="import-preview-box" class="sub-card" hidden>
+          <h4>Import Payload Preview</h4>
+          <p id="import-preview-text"></p>
+          <div class="task-actions">
+            <button type="button" id="btn-confirm-import">Confirm & Replace</button>
+            <button type="button" id="btn-cancel-import">Cancel</button>
+          </div>
+        </div>
+
+        <div class="audit-trail-container">
+          <h4>System Audit Trail</h4>
+          <div class="table-wrapper">
+            <table>
+              <caption>Recent system actions (Unit 8)</caption>
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Task ID</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="audit-log-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="system-metrics" class="content-card" aria-labelledby="system-metrics-title">
+        <h3 id="system-metrics-title">Unit 9: Live Derived Metrics & Analytics</h3>
+        <p class="section-note">Computed dynamically from current JavaScript task records without third-party chart libraries.</p>
+        
+        <div class="dashboard-grid metrics-kpi-grid">
+          <article class="metric-card">
+            <h4>Completion Rate</h4>
+            <strong id="metric-completion-rate">0%</strong>
+            <small>Completed vs Total Tasks</small>
+          </article>
+          <article class="metric-card">
+            <h4>Average Study Time</h4>
+            <strong id="metric-avg-time">0 min</strong>
+            <small>Per active/pending task</small>
+          </article>
+          <article class="metric-card">
+            <h4>Overdue Rate</h4>
+            <strong id="metric-overdue-rate">0%</strong>
+            <small>Past due pending items</small>
+          </article>
+          <article class="metric-card">
+            <h4>Blocked Backlog</h4>
+            <strong id="metric-blocked-count">0</strong>
+            <small>Tasks needing intervention</small>
+          </article>
+        </div>
+
+        <div class="visual-breakdown-container">
+          <h4>Status Distribution</h4>
+          <div id="status-distribution-bars" class="distribution-bars"></div>
+
+          <h4 style="margin-top: var(--space-4);">Priority Distribution</h4>
+          <div id="priority-distribution-bars" class="distribution-bars"></div>
+        </div>
+
+        <div class="table-wrapper" style="margin-top: var(--space-4);">
+          <table>
+            <caption>Unit 9 Dashboard Verification Table</caption>
+            <thead>
+              <tr>
+                <th>Metric Name</th>
+                <th>Derivation Formula</th>
+                <th>Program Calculated</th>
+              </tr>
+            </thead>
+            <tbody id="metric-verification-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- UNIT 10: Integrated QA Verification Suite  -->
+      <!-- ========================================== -->
+      <section id="qa-suite" class="content-card" aria-labelledby="qa-suite-title">
+        <h3 id="qa-suite-title">Unit 10: Integrated Front-End Quality Assurance</h3>
+        <p class="section-note">Automated stress tests covering storage failure recovery, illegal transitions, role enforcement, and resilience.</p>
+        
+        <div class="qa-score-card">
+          <p><strong>Weighted Quality Score:</strong> <span id="qa-quality-score">Calculating...</span></p>
+          <p><small>Formula: Q = 0.30F + 0.20R + 0.20A + 0.15V + 0.15C</small></p>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <caption>Automated Verification Results</caption>
+            <thead>
+              <tr>
+                <th>Test ID</th>
+                <th>Precondition</th>
+                <th>Action</th>
+                <th>Expected Result</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody id="qa-test-results-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer>Front-end prototype</footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>
