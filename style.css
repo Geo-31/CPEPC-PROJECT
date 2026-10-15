@@ -1091,7 +1091,6 @@ body.logged-out {
 #archives-dialog {
   width: min(56rem, calc(100% - 2rem));
   max-height: min(85vh, 44rem);
-  margin: auto;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1126,4 +1125,585 @@ body.logged-out {
   background: var(--card);
   color: var(--primary);
   padding: var(--space-2) var(--space-3);
+}
+
+/* ==========================================
+   UNIT 9 METRICS: REDESIGN
+   ========================================== */
+
+#system-metrics {
+  --tone: var(--brand);
+}
+
+#system-metrics [data-tone="success"] {
+  --tone: var(--success);
+}
+#system-metrics [data-tone="info"] {
+  --tone: var(--schedules);
+}
+#system-metrics [data-tone="danger"] {
+  --tone: var(--danger);
+}
+#system-metrics [data-tone="warning"] {
+  --tone: var(--tasks);
+}
+#system-metrics [data-tone="purple"] {
+  --tone: var(--notes);
+}
+#system-metrics [data-tone="neutral"] {
+  --tone: var(--secondary);
+}
+#system-metrics [data-tone="muted"] {
+  --tone: var(--muted);
+}
+
+.metrics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.metrics-header h3 {
+  margin-bottom: var(--space-1);
+}
+
+.metrics-header .section-note {
+  margin-top: 0;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--brand-dim);
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--brand);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--brand);
+    opacity: 1;
+  }
+  60% {
+    box-shadow: 0 0 0 6px transparent;
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
+
+/* KPI cards */
+#system-metrics .metrics-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+#system-metrics .metric-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  padding-top: calc(var(--space-4) + 3px);
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--raisedcard), var(--card));
+}
+
+#system-metrics .metric-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--tone);
+}
+
+#system-metrics .metric-card h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+#system-metrics .metric-card strong {
+  margin: 0;
+  font-family: "Syne", sans-serif;
+  font-size: clamp(1.9rem, 1.4rem + 1.5vw, 2.5rem);
+  line-height: 1.1;
+  color: var(--tone);
+}
+
+#system-metrics .metric-card small {
+  margin-top: auto;
+  padding-top: var(--space-1);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.metric-meter {
+  height: 6px;
+  margin-block: var(--space-2) var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  overflow: hidden;
+}
+
+.metric-meter > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tone);
+}
+
+/* Distribution panels */
+#system-metrics .visual-breakdown-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.breakdown-panel {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.breakdown-panel h4 {
+  margin-bottom: var(--space-3);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+#system-metrics .distribution-bars {
+  gap: var(--space-3);
+  margin-top: 0;
+}
+
+#system-metrics .bar-row {
+  grid-template-columns: minmax(72px, 100px) 1fr minmax(52px, auto);
+}
+
+#system-metrics .bar-track {
+  height: 12px;
+}
+
+#system-metrics .bar-fill {
+  background: var(--tone);
+}
+
+.bar-count {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-count small {
+  margin-left: 0.1rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Verification table, tucked into a disclosure so it doesn't crowd the cards */
+.metrics-formulas {
+  margin-top: var(--space-5);
+}
+
+.metrics-formulas summary {
+  width: fit-content;
+  padding: var(--space-2) 0;
+  color: var(--secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.metrics-formulas summary:hover {
+  color: var(--primary);
+}
+
+.metrics-formulas .table-wrapper {
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 768px) {
+  .metrics-header {
+    flex-direction: column;
+  }
+}
+/* ==========================================
+   ADD TASK FORM (dashboard)
+   ========================================== */
+
+#task-form {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+  margin-bottom: 0; /* the dashboard grid already supplies the gap */
+  padding: var(--space-5);
+  background: linear-gradient(160deg, var(--raisedcard), var(--card));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius);
+}
+
+#task-form .form-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+#task-form .form-head h3 {
+  margin: 0;
+}
+
+#task-form .form-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+#task-form .req {
+  color: var(--danger);
+}
+
+/* Row 1: title + subject. Row 2: due date + priority + notes. */
+#task-form > div:has([name="title"]) {
+  grid-column: span 7;
+  order: 1;
+}
+#task-form > div:has([name="subject"]) {
+  grid-column: span 5;
+  order: 2;
+}
+#task-form > div:has([name="dueDate"]) {
+  grid-column: span 4;
+  order: 3;
+}
+#task-form > div:has([name="priority"]) {
+  grid-column: span 3;
+  order: 4;
+}
+#task-form > div:has([name="notes"]) {
+  grid-column: span 5;
+  order: 5;
+}
+#task-form button[type="submit"] {
+  order: 6;
+}
+
+#task-form label {
+  margin-bottom: var(--space-2);
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+#task-form input,
+#task-form select {
+  width: 100%;
+  padding: 0.65rem var(--space-3);
+}
+
+#task-form input::placeholder {
+  color: var(--muted);
+}
+
+#task-form input:focus-visible,
+#task-form select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  border-color: var(--brand);
+}
+
+/* Make the native date picker icon visible in each theme. */
+#task-form input[type="date"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] #task-form input[type="date"] {
+  color-scheme: light;
+}
+
+#task-form button[type="submit"] {
+  grid-column: 1 / -1;
+  justify-self: end;
+  padding: 0.7rem 1.75rem;
+  font-size: 0.95rem;
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+}
+
+#task-form button[type="submit"]:hover {
+  filter: brightness(1.08);
+}
+
+#task-form button[type="submit"]:active {
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #task-form button[type="submit"] {
+    transition: none;
+  }
+}
+
+/* Narrow screens: one field per row, full-width button. */
+@media (max-width: 768px) {
+  #task-form {
+    padding: var(--space-4);
+  }
+
+  #task-form .field-title,
+  #task-form .field-subject,
+  #task-form .field-due,
+  #task-form .field-priority,
+  #task-form .field-notes {
+    grid-column: 1 / -1;
+  }
+
+  #task-form button[type="submit"] {
+    justify-self: stretch;
+  }
+}
+#task-form > div:has([name]) {
+  grid-column: 1 / -1;
+}
+/* ==========================================
+   LIGHT THEME v2
+   ========================================== */
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --canvas: #eef2f0; /* the page behind the cards */
+  --page-a: #ffffff; /* white: mobile nav + text on green buttons */
+  --page-b: #f4f7f5;
+
+  --card: #f4f7f5; /* sunken surfaces: inputs, tracks, inner panels */
+  --raisedcard: #ffffff;
+  --border: #d5ded9;
+  --border-soft: #e6ece9;
+
+  --primary: #0f1c17;
+  --secondary: #3d4c45;
+  --muted: #5e6d66;
+
+  --brand: #0a7556;
+  --brand-dim: #e0f4ec;
+
+  --tasks: #a45f00;
+  --tasks-bg: #fdefd2;
+  --schedules: #1b62ae;
+  --schedules-bg: #dfecf9;
+  --notes: #7339c0;
+  --notes-bg: #eee3fa;
+  --expenses: #bd2c57;
+  --expenses-bg: #fae2ea;
+  --focus: #0a7556;
+  --focus-bg: #e0f4ec;
+
+  --danger: #bf262c;
+  --success: #0c7a47;
+
+  --shadow-card:
+    0 1px 2px rgba(15, 28, 23, 0.06), 0 8px 24px -12px rgba(15, 28, 23, 0.16);
+}
+
+:root[data-theme="light"] body {
+  background: var(--canvas);
+}
+
+/* ---- Shell ---- */
+:root[data-theme="light"] .app-header,
+:root[data-theme="light"] .primary-nav {
+  background: var(--page-a);
+}
+
+:root[data-theme="light"] .primary-nav a {
+  font-weight: 500;
+}
+
+:root[data-theme="light"] .primary-nav a:hover {
+  background: var(--card);
+  color: var(--primary);
+}
+
+:root[data-theme="light"] .primary-nav a[aria-current="page"] {
+  background: var(--brand-dim);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+@media (min-width: 1041px) {
+  :root[data-theme="light"] .primary-nav a[aria-current="page"] {
+    box-shadow: inset 3px 0 0 var(--brand);
+  }
+}
+
+@media (max-width: 768px) {
+  :root[data-theme="light"] .primary-nav {
+    box-shadow: 0 -6px 20px rgba(15, 28, 23, 0.08);
+  }
+}
+
+/* ---- Cards ---- */
+:root[data-theme="light"] .content-card,
+:root[data-theme="light"] #dashboard > section,
+:root[data-theme="light"] #task-form,
+:root[data-theme="light"] .login-card {
+  background: var(--raisedcard);
+  box-shadow: var(--shadow-card);
+}
+
+:root[data-theme="light"] #system-metrics .metric-card,
+:root[data-theme="light"] .breakdown-panel {
+  background: var(--card);
+  box-shadow: none;
+}
+
+:root[data-theme="light"] #system-metrics .bar-track,
+:root[data-theme="light"] #system-metrics .metric-meter {
+  background: #dde5e1;
+  border-color: transparent;
+}
+
+/* ---- Tables ---- */
+:root[data-theme="light"] .table-wrapper {
+  background: var(--raisedcard);
+  box-shadow: var(--shadow-card);
+}
+
+:root[data-theme="light"] .content-card .table-wrapper {
+  box-shadow: none;
+}
+
+:root[data-theme="light"] th,
+:root[data-theme="light"] td {
+  border-bottom-color: var(--border-soft);
+}
+
+:root[data-theme="light"] thead th {
+  background: var(--card);
+  color: var(--secondary);
+  border-bottom-color: var(--border);
+}
+
+:root[data-theme="light"] tbody tr:hover > * {
+  background: #f5faf7;
+}
+
+/* ---- Form fields ---- */
+:root[data-theme="light"] input:not([type="radio"]):not([type="checkbox"]),
+:root[data-theme="light"] select,
+:root[data-theme="light"] textarea {
+  background: var(--raisedcard);
+  border-color: #c4cfc9;
+}
+
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: #66746e;
+}
+
+:root[data-theme="light"] input:focus-visible,
+:root[data-theme="light"] select:focus-visible,
+:root[data-theme="light"] textarea:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  border-color: var(--brand);
+}
+
+/* ---- Buttons ---- */
+:root[data-theme="light"]
+  button:not([type="submit"]):not(.btn-danger):not(.primary-action):hover {
+  filter: brightness(0.95);
+}
+
+:root[data-theme="light"] button[type="submit"],
+:root[data-theme="light"] #task-list button.primary-action,
+:root[data-theme="light"] #task-details button.primary-action {
+  box-shadow: 0 1px 2px rgba(10, 117, 86, 0.35);
+}
+
+:root[data-theme="light"] .btn-danger {
+  background: #fdeceb !important;
+}
+
+/* ---- Small details ---- */
+:root[data-theme="light"] .theme-option:has(input:checked) {
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+:root[data-theme="light"] .status-todo {
+  background: #eef2f0;
+}
+/* ==========================================
+   DASHBOARD SUMMARY CARDS (both themes)
+   ========================================== */
+
+#dashboard > .dashboard-metric h3 {
+  margin: 0 0 var(--space-2);
+  font-family: "Manrope", system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+#dashboard > .dashboard-metric strong {
+  margin: 0;
+  font-family: "Syne", sans-serif;
+  font-size: clamp(1.25rem, 1rem + 0.7vw, 1.55rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+#dashboard > #dash-priority {
+  border-left: 3px solid var(--tasks);
+}
+#dashboard > #dash-tomorrow {
+  border-left: 3px solid var(--schedules);
+}
+#dashboard > #dash-notes {
+  border-left: 3px solid var(--notes);
+}
+#dashboard > #dash-expenses {
+  border-left: 3px solid var(--expenses);
+}
+#dashboard > #dash-focus {
+  border-left: 3px solid var(--focus);
 }

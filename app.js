@@ -15,31 +15,66 @@ const PROGRESS_PATH = WORKFLOW_PATH.filter((status) => status !== "Archived");
 */
 const TRANSITION_MATRIX = {
   "To do": {
-    "In progress": { actionLabel: "Start", condition: "hasTaskBasics", row: true, emphasis: true }
+    "In progress": {
+      actionLabel: "Start",
+      condition: "hasTaskBasics",
+      row: true,
+      emphasis: true,
+    },
   },
   "In progress": {
-    "In review": { actionLabel: "Submit for review", condition: "hasTaskBasics", row: true, emphasis: true },
-    "To do": { actionLabel: "Move back to To do", condition: "hasTaskBasics", row: false, emphasis: false }
+    "In review": {
+      actionLabel: "Submit for review",
+      condition: "hasTaskBasics",
+      row: true,
+      emphasis: true,
+    },
+    "To do": {
+      actionLabel: "Move back to To do",
+      condition: "hasTaskBasics",
+      row: false,
+      emphasis: false,
+    },
   },
   "In review": {
-    Done: { actionLabel: "Mark done", condition: "hasTaskBasics", row: true, emphasis: true },
-    "In progress": { actionLabel: "Return for changes", condition: "hasTaskBasics", row: true, emphasis: false }
+    Done: {
+      actionLabel: "Mark done",
+      condition: "hasTaskBasics",
+      row: true,
+      emphasis: true,
+    },
+    "In progress": {
+      actionLabel: "Return for changes",
+      condition: "hasTaskBasics",
+      row: true,
+      emphasis: false,
+    },
   },
   Done: {
-    Archived: { actionLabel: "Archive", condition: "hasTaskBasics", row: true, emphasis: false },
-    "In progress": { actionLabel: "Reopen", condition: "hasTaskBasics", row: true, emphasis: false }
+    Archived: {
+      actionLabel: "Archive",
+      condition: "hasTaskBasics",
+      row: true,
+      emphasis: false,
+    },
+    "In progress": {
+      actionLabel: "Reopen",
+      condition: "hasTaskBasics",
+      row: true,
+      emphasis: false,
+    },
   },
   /* Terminal state: nothing can leave Archived. */
-  Archived: {}
+  Archived: {},
 };
 
 const TRANSITION_CONDITIONS = {
   hasTaskBasics: (task) =>
     Boolean(
       String(task.title ?? "").trim() &&
-        String(task.subject ?? "").trim() &&
-        task.dueDate
-    )
+      String(task.subject ?? "").trim() &&
+      task.dueDate,
+    ),
 };
 
 /* -----------------------------
@@ -54,7 +89,8 @@ const TRANSITION_CONDITIONS = {
 /* A role maps to a "view". Any role without its own view sees the student view. */
 const ROLES = {
   admin: { label: "Administrator", view: "admin" },
-  student: { label: "Student", view: "student" }
+  student: { label: "Student", view: "student" },
+  teacher: { label: "Teacher", view: "teacher" },
 };
 
 const USERS = [
@@ -63,15 +99,25 @@ const USERS = [
     username: "admin",
     displayName: "Admin",
     role: "admin",
-    passwordHash: "9f75113838510c02f916ffc95d7b903078d74c35d9912ec30c2a4866cbcc0d83"
+    passwordHash:
+      "9f75113838510c02f916ffc95d7b903078d74c35d9912ec30c2a4866cbcc0d83",
   },
   {
     id: "student-001",
     username: "student",
     displayName: "Student",
     role: "student",
-    passwordHash: "652cb50427667500e55bade9c407dd0f648e4b80c423bb5a4c18231c5e88a636"
-  }
+    passwordHash:
+      "652cb50427667500e55bade9c407dd0f648e4b80c423bb5a4c18231c5e88a636",
+  },
+  {
+    id: "teacher-001",
+    username: "teacher",
+    displayName: "Teacher",
+    role: "teacher",
+    passwordHash:
+      "c35bf2952e5a35a88721cf03349803358d2b7d84ba5def8a0b8d2f1567c2464a",
+  },
 ];
 
 const SESSION_KEY = "studyhub-session";
@@ -147,6 +193,14 @@ function applyRoleView() {
       ?.setAttribute("aria-current", "page");
   }
 
+  if (currentView === "teacher") {
+    const teacherSection = document.querySelector("#teacher-dashboard");
+    if (teacherSection) teacherSection.hidden = false;
+    document
+      .querySelector('.primary-nav a[href="#teacher-dashboard"]')
+      ?.setAttribute("aria-current", "page");
+  }
+
   root.dataset.ready = "true";
 }
 
@@ -190,7 +244,7 @@ if (loginForm) {
     const remainingMs = lockedUntil - Date.now();
     if (remainingMs > 0) {
       showLoginError(
-        `Too many attempts. Try again in ${Math.ceil(remainingMs / 1000)} seconds.`
+        `Too many attempts. Try again in ${Math.ceil(remainingMs / 1000)} seconds.`,
       );
       return;
     }
@@ -198,6 +252,7 @@ if (loginForm) {
     const data = new FormData(loginForm);
     const username = String(data.get("username") ?? "");
     const password = String(data.get("password") ?? "");
+    const selectedRole = String(data.get("role") ?? "student");
 
     if (!username.trim() || !password) {
       showLoginError("Enter your username and password.");
@@ -209,6 +264,12 @@ if (loginForm) {
       user = await authenticate(username, password);
     } catch {
       showLoginError("Sign-in needs a secure page (https or localhost).");
+      return;
+    }
+
+    if (user && user.role !== "admin" && user.role !== selectedRole) {
+      showLoginError("The selected role does not match this account.");
+      loginForm.elements.password.value = "";
       return;
     }
 
@@ -229,7 +290,9 @@ if (loginForm) {
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }));
     } catch {
-      showLoginError("Your browser is blocking storage, so sign-in can't be kept.");
+      showLoginError(
+        "Your browser is blocking storage, so sign-in can't be kept.",
+      );
       return;
     }
 
@@ -258,12 +321,13 @@ const state = {
       id: "TASK-001",
       title: "Unit 3 Data Engine",
       subject: "CPE Professional Course 1",
-      description: "Build the JavaScript state model and deterministic task renderer.",
+      description:
+        "Build the JavaScript state model and deterministic task renderer.",
       dueDate: "2026-09-28",
       priority: "High",
       status: "In progress",
       createdAt: "2026-09-24T09:00:00",
-      estimatedMinutes: 120
+      estimatedMinutes: 120,
     },
     {
       id: "TASK-002",
@@ -274,7 +338,7 @@ const state = {
       priority: "High",
       status: "To do",
       createdAt: "2026-09-23T15:20:00",
-      estimatedMinutes: 90
+      estimatedMinutes: 90,
     },
     {
       id: "TASK-003",
@@ -285,18 +349,19 @@ const state = {
       priority: "Medium",
       status: "To do",
       createdAt: "2026-09-22T18:10:00",
-      estimatedMinutes: 75
+      estimatedMinutes: 75,
     },
     {
       id: "TASK-004",
       title: "Computer Engineering Reflection Video",
       subject: "Computer Engineering as a Discipline",
-      description: "Record the reflection about speech-to-text and text-to-speech tools.",
+      description:
+        "Record the reflection about speech-to-text and text-to-speech tools.",
       dueDate: "2026-10-01",
       priority: "Medium",
       status: "In progress",
       createdAt: "2026-09-21T14:00:00",
-      estimatedMinutes: 60
+      estimatedMinutes: 60,
     },
     {
       id: "TASK-005",
@@ -307,40 +372,43 @@ const state = {
       priority: "Medium",
       status: "Done",
       createdAt: "2026-09-20T11:30:00",
-      estimatedMinutes: 100
+      estimatedMinutes: 100,
     },
     {
       id: "TASK-006",
       title: "Research Reading Notes",
       subject: "Computer Engineering History",
-      description: "Summarize the assigned reading and prepare answers to guide questions.",
+      description:
+        "Summarize the assigned reading and prepare answers to guide questions.",
       dueDate: "2026-10-03",
       priority: "Low",
       status: "To do",
       createdAt: "2026-09-20T08:45:00",
-      estimatedMinutes: 45
+      estimatedMinutes: 45,
     },
     {
       id: "TASK-007",
       title: "Weekly Class Schedule Update",
       subject: "Personal Organization",
-      description: "Update room assignments and class times for the coming week.",
+      description:
+        "Update room assignments and class times for the coming week.",
       dueDate: "2026-10-04",
       priority: "Low",
       status: "Done",
       createdAt: "2026-09-19T20:00:00",
-      estimatedMinutes: 20
+      estimatedMinutes: 20,
     },
     {
       id: "TASK-008",
       title: "Expense Log Review",
       subject: "Personal Finance",
-      description: "Check this week's transportation, food, and printing expenses.",
+      description:
+        "Check this week's transportation, food, and printing expenses.",
       dueDate: "2026-10-05",
       priority: "Low",
       status: "To do",
       createdAt: "2026-09-19T16:20:00",
-      estimatedMinutes: 30
+      estimatedMinutes: 30,
     },
     {
       id: "TASK-009",
@@ -351,7 +419,7 @@ const state = {
       priority: "Medium",
       status: "Done",
       createdAt: "2026-09-18T10:10:00",
-      estimatedMinutes: 50
+      estimatedMinutes: 50,
     },
     {
       id: "TASK-010",
@@ -362,7 +430,7 @@ const state = {
       priority: "High",
       status: "In progress",
       createdAt: "2026-09-18T09:30:00",
-      estimatedMinutes: 80
+      estimatedMinutes: 80,
     },
     {
       id: "TASK-011",
@@ -373,7 +441,7 @@ const state = {
       priority: "Low",
       status: "To do",
       createdAt: "2026-09-17T19:15:00",
-      estimatedMinutes: 25
+      estimatedMinutes: 25,
     },
     {
       id: "TASK-012",
@@ -384,53 +452,56 @@ const state = {
       priority: "Medium",
       status: "To do",
       createdAt: "2026-09-17T12:00:00",
-      estimatedMinutes: 45
+      estimatedMinutes: 45,
     },
     {
       id: "TASK-013",
       title: "Flowchart Corrections",
       subject: "Data Structures",
-      description: "Apply final corrections to the quiz algorithms and flowcharts.",
+      description:
+        "Apply final corrections to the quiz algorithms and flowcharts.",
       dueDate: "2026-10-10",
       priority: "High",
       status: "Done",
       createdAt: "2026-09-16T17:40:00",
-      estimatedMinutes: 70
+      estimatedMinutes: 70,
     },
     {
       id: "TASK-014",
       title: "StudyHub UI Review",
       subject: "CPE Professional Course 1",
-      description: "Review sidebar, dashboard, and focus-mode design consistency.",
+      description:
+        "Review sidebar, dashboard, and focus-mode design consistency.",
       dueDate: "2026-10-11",
       priority: "Medium",
       status: "To do",
       createdAt: "2026-09-16T13:25:00",
-      estimatedMinutes: 40
+      estimatedMinutes: 40,
     },
     {
       id: "TASK-015",
       title: "Unit 3 Submission Check",
       subject: "CPE Professional Course 1",
-      description: "Verify mock records, derived values, rendering, event delegation, and assertions.",
+      description:
+        "Verify mock records, derived values, rendering, event delegation, and assertions.",
       dueDate: "2026-10-12",
       priority: "High",
       status: "To do",
       createdAt: "2026-09-15T21:10:00",
-      estimatedMinutes: 60
-    }
+      estimatedMinutes: 60,
+    },
   ].map((record) => ({ ...record, workflowHistory: [] })),
 
   query: "",
 
   filters: {
     status: "ALL",
-    priority: "ALL"
+    priority: "ALL",
   },
 
   sort: {
     key: "dueDate",
-    direction: "asc"
+    direction: "asc",
   },
 
   page: 1,
@@ -440,39 +511,190 @@ const state = {
   archivedRecords: [],
 
   schedules: [
-    { id: "SCH-001", day: "Monday", startTime: "10:30", endTime: "11:30", className: "Computer Engineering as a Discipline", courseCode: "CMPE 101", instructor: "Prof. Ryan Evangelista" },
-    { id: "SCH-002", day: "Monday", startTime: "13:30", endTime: "16:30", className: "Filipinolohiya at Pambansang Kaunlaran", courseCode: "GEED 032", instructor: "Prof. Jhonley Cubacub" },
-    { id: "SCH-003", day: "Tuesday", startTime: "07:30", endTime: "10:30", className: "2D Animation", courseCode: "CPET 201", instructor: "Prof. Jerome De Guzman" },
-    { id: "SCH-004", day: "Tuesday", startTime: "10:30", endTime: "13:30", className: "Data Structures and Algorithms", courseCode: "CMPE 201", instructor: "Prof. Mylo Atencio" },
-    { id: "SCH-005", day: "Tuesday", startTime: "15:00", endTime: "18:00", className: "Fundamentals of Electronic Circuits", courseCode: "ECEN 011", instructor: "TBA" },
-    { id: "SCH-006", day: "Wednesday", startTime: "10:00", endTime: "13:00", className: "Discrete Mathematics", courseCode: "CMPE 104", instructor: "Prof. Mylo Atencio" },
-    { id: "SCH-007", day: "Wednesday", startTime: "13:00", endTime: "16:00", className: "Fundamentals of Electrical Circuits", courseCode: "ELEN 012", instructor: "Prof. Ronald Fernando" },
-    { id: "SCH-008", day: "Wednesday", startTime: "16:30", endTime: "18:30", className: "Physical Activity Towards Health and Fitness 3", courseCode: "PATHFIT 3", instructor: "Prof. Remus Laglagaron" },
-    { id: "SCH-009", day: "Friday", startTime: "07:30", endTime: "10:30", className: "2D Animation", courseCode: "CPET 201", instructor: "Prof. Jerome De Guzman" },
-    { id: "SCH-010", day: "Friday", startTime: "10:30", endTime: "13:30", className: "Data Structures and Algorithms", courseCode: "CMPE 201", instructor: "Prof. Mylo Atencio" },
-    { id: "SCH-011", day: "Friday", startTime: "15:00", endTime: "18:00", className: "Fundamentals of Electronic Circuits", courseCode: "ECEN 011", instructor: "TBA" },
-    { id: "SCH-012", day: "Friday", startTime: "18:00", endTime: "21:00", className: "CPE Professional Course 1", courseCode: "CMPE-PC1", instructor: "Prof. Jose Marie Dipay" },
-    { id: "SCH-013", day: "Saturday", startTime: "07:30", endTime: "10:30", className: "Fundamentals of Electrical Circuits", courseCode: "ELEN 012", instructor: "Prof. Ronald Fernando" },
-    { id: "SCH-014", day: "Saturday", startTime: "12:00", endTime: "14:00", className: "CPE Professional Course 1", courseCode: "CMPE-PC1", instructor: "Prof. Jose Marie Dipay" }
+    {
+      id: "SCH-001",
+      day: "Monday",
+      startTime: "10:30",
+      endTime: "11:30",
+      className: "Computer Engineering as a Discipline",
+      courseCode: "CMPE 101",
+      instructor: "Prof. Ryan Evangelista",
+    },
+    {
+      id: "SCH-002",
+      day: "Monday",
+      startTime: "13:30",
+      endTime: "16:30",
+      className: "Filipinolohiya at Pambansang Kaunlaran",
+      courseCode: "GEED 032",
+      instructor: "Prof. Jhonley Cubacub",
+    },
+    {
+      id: "SCH-003",
+      day: "Tuesday",
+      startTime: "07:30",
+      endTime: "10:30",
+      className: "2D Animation",
+      courseCode: "CPET 201",
+      instructor: "Prof. Jerome De Guzman",
+    },
+    {
+      id: "SCH-004",
+      day: "Tuesday",
+      startTime: "10:30",
+      endTime: "13:30",
+      className: "Data Structures and Algorithms",
+      courseCode: "CMPE 201",
+      instructor: "Prof. Mylo Atencio",
+    },
+    {
+      id: "SCH-005",
+      day: "Tuesday",
+      startTime: "15:00",
+      endTime: "18:00",
+      className: "Fundamentals of Electronic Circuits",
+      courseCode: "ECEN 011",
+      instructor: "TBA",
+    },
+    {
+      id: "SCH-006",
+      day: "Wednesday",
+      startTime: "10:00",
+      endTime: "13:00",
+      className: "Discrete Mathematics",
+      courseCode: "CMPE 104",
+      instructor: "Prof. Mylo Atencio",
+    },
+    {
+      id: "SCH-007",
+      day: "Wednesday",
+      startTime: "13:00",
+      endTime: "16:00",
+      className: "Fundamentals of Electrical Circuits",
+      courseCode: "ELEN 012",
+      instructor: "Prof. Ronald Fernando",
+    },
+    {
+      id: "SCH-008",
+      day: "Wednesday",
+      startTime: "16:30",
+      endTime: "18:30",
+      className: "Physical Activity Towards Health and Fitness 3",
+      courseCode: "PATHFIT 3",
+      instructor: "Prof. Remus Laglagaron",
+    },
+    {
+      id: "SCH-009",
+      day: "Friday",
+      startTime: "07:30",
+      endTime: "10:30",
+      className: "2D Animation",
+      courseCode: "CPET 201",
+      instructor: "Prof. Jerome De Guzman",
+    },
+    {
+      id: "SCH-010",
+      day: "Friday",
+      startTime: "10:30",
+      endTime: "13:30",
+      className: "Data Structures and Algorithms",
+      courseCode: "CMPE 201",
+      instructor: "Prof. Mylo Atencio",
+    },
+    {
+      id: "SCH-011",
+      day: "Friday",
+      startTime: "15:00",
+      endTime: "18:00",
+      className: "Fundamentals of Electronic Circuits",
+      courseCode: "ECEN 011",
+      instructor: "TBA",
+    },
+    {
+      id: "SCH-012",
+      day: "Friday",
+      startTime: "18:00",
+      endTime: "21:00",
+      className: "CPE Professional Course 1",
+      courseCode: "CMPE-PC1",
+      instructor: "Prof. Jose Marie Dipay",
+    },
+    {
+      id: "SCH-013",
+      day: "Saturday",
+      startTime: "07:30",
+      endTime: "10:30",
+      className: "Fundamentals of Electrical Circuits",
+      courseCode: "ELEN 012",
+      instructor: "Prof. Ronald Fernando",
+    },
+    {
+      id: "SCH-014",
+      day: "Saturday",
+      startTime: "12:00",
+      endTime: "14:00",
+      className: "CPE Professional Course 1",
+      courseCode: "CMPE-PC1",
+      instructor: "Prof. Jose Marie Dipay",
+    },
   ],
   editingSchedule: null,
 
   notes: [
-    { id: "NOTE-001", title: "Electrical circuits", body: "For a series circuit, the same current flows through every component. Add the resistances to find the total resistance.", remark: "Review before the next problem set." },
-    { id: "NOTE-002", title: "Data structures", body: "A linked list stores items in nodes. Each node points to the next node, so inserting or removing an item does not require shifting every later item.", remark: "Remember to trace the pointer changes." },
-    { id: "NOTE-003", title: "Web development", body: "Use semantic HTML elements to describe the purpose of each part of a page, and keep form labels connected to their controls.", remark: "Unit 1 review" }
+    {
+      id: "NOTE-001",
+      title: "Electrical circuits",
+      body: "For a series circuit, the same current flows through every component. Add the resistances to find the total resistance.",
+      remark: "Review before the next problem set.",
+    },
+    {
+      id: "NOTE-002",
+      title: "Data structures",
+      body: "A linked list stores items in nodes. Each node points to the next node, so inserting or removing an item does not require shifting every later item.",
+      remark: "Remember to trace the pointer changes.",
+    },
+    {
+      id: "NOTE-003",
+      title: "Web development",
+      body: "Use semantic HTML elements to describe the purpose of each part of a page, and keep form labels connected to their controls.",
+      remark: "Unit 1 review",
+    },
   ],
   editingNote: null,
 
   expenses: [
-    { id: "EXP-001", date: "2026-10-12", item: "Bus fare", category: "Transport", amount: 3.0 },
-    { id: "EXP-002", date: "2026-10-13", item: "Lunch", category: "Food", amount: 8.5 },
-    { id: "EXP-003", date: "2026-10-14", item: "Printed readings", category: "School supplies", amount: 2.25 },
-    { id: "EXP-004", date: "2026-10-15", item: "Bus fare", category: "Transport", amount: 3.0 }
+    {
+      id: "EXP-001",
+      date: "2026-10-12",
+      item: "Bus fare",
+      category: "Transport",
+      amount: 3.0,
+    },
+    {
+      id: "EXP-002",
+      date: "2026-10-13",
+      item: "Lunch",
+      category: "Food",
+      amount: 8.5,
+    },
+    {
+      id: "EXP-003",
+      date: "2026-10-14",
+      item: "Printed readings",
+      category: "School supplies",
+      amount: 2.25,
+    },
+    {
+      id: "EXP-004",
+      date: "2026-10-15",
+      item: "Bus fare",
+      category: "Transport",
+      amount: 3.0,
+    },
   ],
   editingExpense: null,
 
-  auditLog: []
+  auditLog: [],
 };
 
 /* -----------------------------
@@ -526,7 +748,7 @@ function getStatusClass(status) {
       "In progress": "status-in-progress",
       "In review": "status-in-review",
       Done: "status-done",
-      Archived: "status-archived"
+      Archived: "status-archived",
     }[status] ?? ""
   );
 }
@@ -540,7 +762,9 @@ function getStudyHours(task) {
    ----------------------------- */
 
 function normalize(value) {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function canEditTask(task) {
@@ -566,14 +790,13 @@ function matchesQuery(task) {
     task.subject,
     task.description,
     task.priority,
-    task.status
+    task.status,
   ].some((value) => normalize(value).includes(query));
 }
 
 function matchesFilters(task) {
   const statusMatches =
-    state.filters.status === "ALL" ||
-    task.status === state.filters.status;
+    state.filters.status === "ALL" || task.status === state.filters.status;
 
   const priorityMatches =
     state.filters.priority === "ALL" ||
@@ -586,7 +809,7 @@ function priorityRank(priority) {
   const ranks = {
     High: 3,
     Medium: 2,
-    Low: 1
+    Low: 1,
   };
 
   return ranks[priority] ?? 0;
@@ -629,7 +852,7 @@ function getAvailableTransitions(task) {
     : {};
 
   return Object.entries(transitions).filter(([, transition]) =>
-    TRANSITION_CONDITIONS[transition.condition](task)
+    TRANSITION_CONDITIONS[transition.condition](task),
   );
 }
 
@@ -655,7 +878,7 @@ function evaluateTransition(task, nextStatus) {
   if (!transition) {
     return {
       allowed: false,
-      message: `Transition from "${task.status}" to "${nextStatus}" is not allowed.`
+      message: `Transition from "${task.status}" to "${nextStatus}" is not allowed.`,
     };
   }
 
@@ -664,14 +887,18 @@ function evaluateTransition(task, nextStatus) {
   if (!condition(task)) {
     return {
       allowed: false,
-      message: `Cannot ${transition.actionLabel.toLowerCase()}: required task details are missing.`
+      message: `Cannot ${transition.actionLabel.toLowerCase()}: required task details are missing.`,
     };
   }
 
   return { allowed: true, transition };
 }
 
-function attemptTransition(task, nextStatus, timestamp = new Date().toISOString()) {
+function attemptTransition(
+  task,
+  nextStatus,
+  timestamp = new Date().toISOString(),
+) {
   const result = evaluateTransition(task, nextStatus);
 
   if (!result.allowed) return result;
@@ -680,7 +907,7 @@ function attemptTransition(task, nextStatus, timestamp = new Date().toISOString(
     timestamp,
     previousStatus: task.status,
     nextStatus,
-    actionLabel: result.transition.actionLabel
+    actionLabel: result.transition.actionLabel,
   };
 
   return {
@@ -688,9 +915,9 @@ function attemptTransition(task, nextStatus, timestamp = new Date().toISOString(
     record: {
       ...task,
       status: nextStatus,
-      workflowHistory: [...(task.workflowHistory ?? []), historyEntry]
+      workflowHistory: [...(task.workflowHistory ?? []), historyEntry],
     },
-    historyEntry
+    historyEntry,
   };
 }
 
@@ -733,7 +960,7 @@ function renderRecords(records) {
                       data-id="${escapeHTML(task.id)}"
                       data-next-status="${escapeHTML(nextStatus)}"
                     >${escapeHTML(transition.actionLabel)}</button>
-                  `
+                  `,
                 )
                 .join("")}
             </div>
@@ -750,7 +977,8 @@ function renderSummary(records) {
   const pending = records.filter((task) => !isFinished(task));
 
   const priorityTask = [...pending].sort((a, b) => {
-    const priorityDifference = priorityRank(b.priority) - priorityRank(a.priority);
+    const priorityDifference =
+      priorityRank(b.priority) - priorityRank(a.priority);
     if (priorityDifference !== 0) return priorityDifference;
     return new Date(a.dueDate) - new Date(b.dueDate);
   })[0];
@@ -762,7 +990,7 @@ function renderSummary(records) {
 
   const totalStudyMinutes = records.reduce(
     (sum, task) => sum + task.estimatedMinutes,
-    0
+    0,
   );
 
   setText("#summary-total", String(total));
@@ -772,9 +1000,12 @@ function renderSummary(records) {
     "#summary-priority",
     priorityTask
       ? `${priorityTask.title} (${priorityTask.priority})`
-      : "No pending tasks"
+      : "No pending tasks",
   );
-  setText("#summary-study-time", `${(totalStudyMinutes / 60).toFixed(1)} hours`);
+  setText(
+    "#summary-study-time",
+    `${(totalStudyMinutes / 60).toFixed(1)} hours`,
+  );
 }
 
 /* -----------------------------
@@ -791,10 +1022,15 @@ function percentOf(part, whole) {
 function computeMetrics(records) {
   const total = records.length;
   const done = records.filter(isFinished).length;
-  const inProgress = records.filter((task) => task.status === "In progress").length;
+  const inProgress = records.filter(
+    (task) => task.status === "In progress",
+  ).length;
   const pending = records.filter((task) => !isFinished(task));
   const overdue = pending.filter(getIsOverdue).length;
-  const pendingMinutes = pending.reduce((sum, task) => sum + task.estimatedMinutes, 0);
+  const pendingMinutes = pending.reduce(
+    (sum, task) => sum + task.estimatedMinutes,
+    0,
+  );
 
   return {
     total,
@@ -805,17 +1041,30 @@ function computeMetrics(records) {
     pendingMinutes,
     completionRate: percentOf(done, total),
     overdueRate: percentOf(overdue, pending.length),
-    avgMinutes: pending.length > 0 ? Math.round(pendingMinutes / pending.length) : 0,
+    avgMinutes:
+      pending.length > 0 ? Math.round(pendingMinutes / pending.length) : 0,
     byStatus: WORKFLOW_PATH.map((label) => ({
       label,
-      count: records.filter((task) => task.status === label).length
+      count: records.filter((task) => task.status === label).length,
     })),
     byPriority: ["High", "Medium", "Low"].map((label) => ({
       label,
-      count: records.filter((task) => task.priority === label).length
-    }))
+      count: records.filter((task) => task.priority === label).length,
+    })),
   };
 }
+
+/* Colour for each bar, keyed by its label (see [data-tone] rules in style.css). */
+const BAR_TONES = {
+  "To do": "neutral",
+  "In progress": "info",
+  "In review": "purple",
+  Done: "success",
+  Archived: "muted",
+  High: "danger",
+  Medium: "warning",
+  Low: "info",
+};
 
 function renderDistributionBars(selector, rows, total) {
   const container = document.querySelector(selector);
@@ -825,16 +1074,21 @@ function renderDistributionBars(selector, rows, total) {
     .map(({ label, count }) => {
       const percent = percentOf(count, total);
       return `
-        <div class="bar-row">
-          <span>${escapeHTML(label)}</span>
+        <div class="bar-row" data-tone="${BAR_TONES[label] ?? "brand"}">
+          <span class="bar-label">${escapeHTML(label)}</span>
           <div class="bar-track" role="img" aria-label="${escapeHTML(label)}: ${count} of ${total} tasks (${percent}%)">
             <span class="bar-fill" style="width: ${percent}%"></span>
           </div>
-          <span>${count}</span>
+          <span class="bar-count">${count} <small>${percent}%</small></span>
         </div>
       `;
     })
     .join("");
+}
+
+function setMeter(selector, percent) {
+  const element = document.querySelector(selector);
+  if (element) element.style.width = `${percent}%`;
 }
 
 function renderMetrics(records) {
@@ -844,6 +1098,8 @@ function renderMetrics(records) {
   setText("#metric-avg-time", `${m.avgMinutes} min`);
   setText("#metric-overdue-rate", `${m.overdueRate}%`);
   setText("#metric-in-progress-count", String(m.inProgress));
+  setMeter("#metric-completion-meter", m.completionRate);
+  setMeter("#metric-overdue-meter", m.overdueRate);
 
   renderDistributionBars("#status-distribution-bars", m.byStatus, m.total);
   renderDistributionBars("#priority-distribution-bars", m.byPriority, m.total);
@@ -855,29 +1111,35 @@ function renderMetrics(records) {
     [
       "Completion rate",
       "Finished tasks (Done or Archived) ÷ all tasks × 100",
-      m.total > 0 ? `${m.done} ÷ ${m.total} × 100 = ${m.completionRate}%` : "No tasks → 0%"
+      m.total > 0
+        ? `${m.done} ÷ ${m.total} × 100 = ${m.completionRate}%`
+        : "No tasks → 0%",
     ],
     [
       "Average study time",
       "Total estimated minutes of unfinished tasks ÷ number of unfinished tasks",
       m.pendingCount > 0
         ? `${m.pendingMinutes} ÷ ${m.pendingCount} = ${m.avgMinutes} min`
-        : "No unfinished tasks → 0 min"
+        : "No unfinished tasks → 0 min",
     ],
     [
       "Overdue rate",
       "Unfinished tasks past their due date ÷ unfinished tasks × 100",
       m.pendingCount > 0
         ? `${m.overdue} ÷ ${m.pendingCount} × 100 = ${m.overdueRate}%`
-        : "No unfinished tasks → 0%"
+        : "No unfinished tasks → 0%",
     ],
-    ["In progress", "Count of tasks with status \"In progress\"", String(m.inProgress)]
+    [
+      "In progress",
+      'Count of tasks with status "In progress"',
+      String(m.inProgress),
+    ],
   ];
 
   body.innerHTML = rows
     .map(
       ([name, formula, result]) =>
-        `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(formula)}</td><td>${escapeHTML(result)}</td></tr>`
+        `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(formula)}</td><td>${escapeHTML(result)}</td></tr>`,
     )
     .join("");
 }
@@ -919,7 +1181,8 @@ function renderArchives() {
               <ol>
                 ${history
                   .map(
-                    (entry) => `<li>${escapeHTML(new Date(entry.timestamp).toLocaleString())}: ${escapeHTML(entry.previousStatus)} &rarr; ${escapeHTML(entry.nextStatus)} (${escapeHTML(entry.actionLabel)})</li>`
+                    (entry) =>
+                      `<li>${escapeHTML(new Date(entry.timestamp).toLocaleString())}: ${escapeHTML(entry.previousStatus)} &rarr; ${escapeHTML(entry.nextStatus)} (${escapeHTML(entry.actionLabel)})</li>`,
                   )
                   .join("")}
               </ol>
@@ -957,7 +1220,7 @@ function renderDetails() {
   }
 
   const task = state.records.find(
-    (record) => record.id === state.selectedRecord
+    (record) => record.id === state.selectedRecord,
   );
 
   if (!task) {
@@ -980,13 +1243,13 @@ function renderDetails() {
             (entry) => `
               <li>
                 <time datetime="${escapeHTML(entry.timestamp)}">${escapeHTML(
-                  new Date(entry.timestamp).toLocaleString()
+                  new Date(entry.timestamp).toLocaleString(),
                 )}</time>:
                 ${escapeHTML(entry.previousStatus)} &rarr; ${escapeHTML(
-                  entry.nextStatus
+                  entry.nextStatus,
                 )} (${escapeHTML(entry.actionLabel)})
               </li>
-            `
+            `,
           )
           .join("")}
       </ol>`
@@ -1006,7 +1269,7 @@ function renderDetails() {
             ${["Low", "Medium", "High"]
               .map(
                 (priority) =>
-                  `<option value="${priority}" ${task.priority === priority ? "selected" : ""}>${priority}</option>`
+                  `<option value="${priority}" ${task.priority === priority ? "selected" : ""}>${priority}</option>`,
               )
               .join("")}
           </select>
@@ -1025,7 +1288,7 @@ function renderDetails() {
           .map(
             ([nextStatus, transition]) => `
               <button type="button" class="${transition.emphasis ? "primary-action" : ""}" data-action="transition" data-id="${escapeHTML(task.id)}" data-next-status="${escapeHTML(nextStatus)}">${escapeHTML(transition.actionLabel)}</button>
-            `
+            `,
           )
           .join("")}
         ${canEditTask(task) ? `<button type="button" data-action="edit" data-id="${escapeHTML(task.id)}">Edit task</button>` : ""}
@@ -1169,7 +1432,7 @@ function updateTask(id, updates) {
   }
 
   state.records = state.records.map((record) =>
-    record.id === id ? { ...record, ...updates } : record
+    record.id === id ? { ...record, ...updates } : record,
   );
   state.editingRecord = null;
   logAudit("task.update", id, "Task details edited");
@@ -1185,7 +1448,7 @@ function transitionTask(id, nextStatus) {
     showMessage(
       state.archivedRecords.some((record) => record.id === id)
         ? "Archived tasks can't be changed."
-        : `Task "${id}" was not found.`
+        : `Task "${id}" was not found.`,
     );
     return false;
   }
@@ -1211,17 +1474,17 @@ function transitionTask(id, nextStatus) {
     }
   } else {
     state.records = state.records.map((record) =>
-      record.id === id ? result.record : record
+      record.id === id ? result.record : record,
     );
   }
 
   logAudit(
     "task.transition",
     id,
-    `${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus}`
+    `${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus}`,
   );
   showWorkflowMessage(
-    `${id}: ${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus} (${result.historyEntry.actionLabel}).${archiving ? " Moved to Archives." : ""}`
+    `${id}: ${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus} (${result.historyEntry.actionLabel}).${archiving ? " Moved to Archives." : ""}`,
   );
   render();
   return true;
@@ -1237,7 +1500,7 @@ function logAudit(action, targetId, details) {
     actor: session.displayName,
     action,
     targetId,
-    details
+    details,
   };
 
   state.auditLog = [entry, ...state.auditLog].slice(0, 200);
@@ -1258,7 +1521,7 @@ function renderAuditLog() {
               <td>${escapeHTML(entry.targetId)}</td>
               <td>${escapeHTML(entry.details)}</td>
             </tr>
-          `
+          `,
         )
         .join("")
     : `<tr><td colspan="5">No actions recorded yet.</td></tr>`;
@@ -1275,7 +1538,7 @@ const SCHEDULE_DAYS = [
   "Thursday",
   "Friday",
   "Saturday",
-  "Sunday"
+  "Sunday",
 ];
 
 function formatTime(value) {
@@ -1296,16 +1559,18 @@ function generateScheduleId() {
 /* Returns an error message, or "" when the entry is valid. */
 function validateSchedule(entry, ignoreId = null) {
   if (!SCHEDULE_DAYS.includes(entry.day)) return "Choose a valid day.";
-  if (!entry.startTime || !entry.endTime) return "Start and end time are required.";
+  if (!entry.startTime || !entry.endTime)
+    return "Start and end time are required.";
   if (!entry.className) return "Class name is required.";
-  if (entry.endTime <= entry.startTime) return "End time must be after the start time.";
+  if (entry.endTime <= entry.startTime)
+    return "End time must be after the start time.";
 
   const clash = state.schedules.find(
     (item) =>
       item.id !== ignoreId &&
       item.day === entry.day &&
       entry.startTime < item.endTime &&
-      entry.endTime > item.startTime
+      entry.endTime > item.startTime,
   );
 
   if (clash) {
@@ -1336,7 +1601,7 @@ function updateSchedule(id, updates) {
   if (error) return error;
 
   state.schedules = state.schedules.map((item) =>
-    item.id === id ? { ...item, ...updates } : item
+    item.id === id ? { ...item, ...updates } : item,
   );
   state.editingSchedule = null;
   logAudit("schedule.update", id, `${updates.className} (${updates.day})`);
@@ -1367,7 +1632,9 @@ function renderScheduleForm() {
   const form = document.querySelector("#schedule-form");
   if (!form) return;
 
-  const editing = state.schedules.find((item) => item.id === state.editingSchedule);
+  const editing = state.schedules.find(
+    (item) => item.id === state.editingSchedule,
+  );
   const submit = document.querySelector("#schedule-submit");
   const cancel = document.querySelector("#schedule-cancel");
   const title = document.querySelector("#schedule-form-title");
@@ -1387,7 +1654,8 @@ function renderScheduleForm() {
 
   if (submit) submit.textContent = editing ? "Save changes" : "Add class";
   if (cancel) cancel.hidden = !editing;
-  if (title) title.textContent = editing ? `Edit class (${editing.id})` : "Add class";
+  if (title)
+    title.textContent = editing ? `Edit class (${editing.id})` : "Add class";
 }
 
 function renderSchedules() {
@@ -1457,7 +1725,7 @@ if (scheduleForm) {
       endTime: String(data.get("endTime") ?? ""),
       className: String(data.get("className") ?? "").trim(),
       courseCode: String(data.get("courseCode") ?? "").trim(),
-      instructor: String(data.get("instructor") ?? "").trim()
+      instructor: String(data.get("instructor") ?? "").trim(),
     };
 
     const id = String(data.get("id") ?? "");
@@ -1543,7 +1811,7 @@ function updateNote(id, updates) {
   if (error) return error;
 
   state.notes = state.notes.map((item) =>
-    item.id === id ? { ...item, ...updates } : item
+    item.id === id ? { ...item, ...updates } : item,
   );
   state.editingNote = null;
   logAudit("note.update", id, updates.title);
@@ -1593,7 +1861,8 @@ function renderNoteForm() {
   const title = document.querySelector("#note-form-title");
   if (submit) submit.textContent = editing ? "Save changes" : "Add note";
   if (cancel) cancel.hidden = !editing;
-  if (title) title.textContent = editing ? `Edit note (${editing.id})` : "Add note";
+  if (title)
+    title.textContent = editing ? `Edit note (${editing.id})` : "Add note";
 }
 
 function renderNotes() {
@@ -1611,7 +1880,7 @@ function renderNotes() {
             <button type="button" data-note-action="edit" data-id="${escapeHTML(note.id)}">Edit</button>
             <button type="button" class="btn-danger" data-note-action="delete" data-id="${escapeHTML(note.id)}">Delete</button>
           </div>
-        </article>`
+        </article>`,
     )
     .join("");
 
@@ -1636,7 +1905,7 @@ if (noteForm) {
     const entry = {
       title: String(data.get("title") ?? "").trim(),
       body: String(data.get("body") ?? "").trim(),
-      remark: String(data.get("remark") ?? "").trim()
+      remark: String(data.get("remark") ?? "").trim(),
     };
 
     const id = String(data.get("id") ?? "");
@@ -1672,7 +1941,10 @@ if (noteList) {
       document.querySelector("#note-title")?.focus();
     }
 
-    if (noteAction === "delete" && window.confirm(`Delete the note "${item.title}"?`)) {
+    if (
+      noteAction === "delete" &&
+      window.confirm(`Delete the note "${item.title}"?`)
+    ) {
       showNoteError("");
       deleteNote(id);
     }
@@ -1686,7 +1958,7 @@ if (noteList) {
 function formatMoney(value) {
   return `$${Number(value).toLocaleString("en-US", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   })}`;
 }
 
@@ -1698,7 +1970,7 @@ function formatExpenseDate(value) {
     weekday: "short",
     month: "short",
     day: "numeric",
-    year: "numeric"
+    year: "numeric",
   });
 }
 
@@ -1714,13 +1986,14 @@ function generateExpenseId() {
 function getExpenseTotal() {
   const cents = state.expenses.reduce(
     (sum, item) => sum + Math.round(item.amount * 100),
-    0
+    0,
   );
   return cents / 100;
 }
 
 function validateExpense(entry) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.date)) return "A valid date is required.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.date))
+    return "A valid date is required.";
   if (!entry.item) return "The item name is required.";
   if (!Number.isFinite(entry.amount) || entry.amount <= 0) {
     return "Amount must be a number greater than 0.";
@@ -1735,7 +2008,11 @@ function addExpense(entry) {
 
   const record = { id: generateExpenseId(), ...entry };
   state.expenses = [...state.expenses, record];
-  logAudit("expense.create", record.id, `${record.item} (${formatMoney(record.amount)})`);
+  logAudit(
+    "expense.create",
+    record.id,
+    `${record.item} (${formatMoney(record.amount)})`,
+  );
   showMessage(`${record.id} was added.`);
   render();
   renderExpenseForm();
@@ -1751,10 +2028,14 @@ function updateExpense(id, updates) {
   if (error) return error;
 
   state.expenses = state.expenses.map((item) =>
-    item.id === id ? { ...item, ...updates } : item
+    item.id === id ? { ...item, ...updates } : item,
   );
   state.editingExpense = null;
-  logAudit("expense.update", id, `${updates.item} (${formatMoney(updates.amount)})`);
+  logAudit(
+    "expense.update",
+    id,
+    `${updates.item} (${formatMoney(updates.amount)})`,
+  );
   showMessage(`${id} was updated.`);
   render();
   renderExpenseForm();
@@ -1771,7 +2052,11 @@ function deleteExpense(id) {
   const wasEditing = state.editingExpense === id;
   state.expenses = state.expenses.filter((item) => item.id !== id);
   if (wasEditing) state.editingExpense = null;
-  logAudit("expense.delete", id, `${existing.item} (${formatMoney(existing.amount)})`);
+  logAudit(
+    "expense.delete",
+    id,
+    `${existing.item} (${formatMoney(existing.amount)})`,
+  );
   showMessage(`${id} was deleted.`);
   render();
   if (wasEditing) renderExpenseForm();
@@ -1782,7 +2067,9 @@ function renderExpenseForm() {
   const form = document.querySelector("#expense-form");
   if (!form) return;
 
-  const editing = state.expenses.find((item) => item.id === state.editingExpense);
+  const editing = state.expenses.find(
+    (item) => item.id === state.editingExpense,
+  );
 
   if (editing) {
     form.elements.id.value = editing.id;
@@ -1800,7 +2087,10 @@ function renderExpenseForm() {
   const title = document.querySelector("#expense-form-title");
   if (submit) submit.textContent = editing ? "Save changes" : "Add expense";
   if (cancel) cancel.hidden = !editing;
-  if (title) title.textContent = editing ? `Edit expense (${editing.id})` : "Add expense";
+  if (title)
+    title.textContent = editing
+      ? `Edit expense (${editing.id})`
+      : "Add expense";
 }
 
 function renderExpenses() {
@@ -1808,7 +2098,7 @@ function renderExpenses() {
   if (!body) return;
 
   const sorted = [...state.expenses].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)
+    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
   );
 
   body.innerHTML = sorted.length
@@ -1826,7 +2116,7 @@ function renderExpenses() {
                   <button type="button" class="btn-danger" data-expense-action="delete" data-id="${escapeHTML(item.id)}">Delete</button>
                 </div>
               </td>
-            </tr>`
+            </tr>`,
         )
         .join("")
     : `<tr><td colspan="5">No expenses recorded yet.</td></tr>`;
@@ -1853,7 +2143,8 @@ if (expenseForm) {
       date: String(data.get("date") ?? ""),
       item: String(data.get("itemName") ?? "").trim(),
       category: String(data.get("category") ?? "").trim(),
-      amount: rawAmount === "" ? NaN : Math.round(Number(rawAmount) * 100) / 100
+      amount:
+        rawAmount === "" ? NaN : Math.round(Number(rawAmount) * 100) / 100,
     };
 
     const id = String(data.get("id") ?? "");
@@ -1889,7 +2180,10 @@ if (expenseBody) {
       document.querySelector("#expense-item")?.focus();
     }
 
-    if (expenseAction === "delete" && window.confirm(`Delete "${item.item}" (${formatMoney(item.amount)})?`)) {
+    if (
+      expenseAction === "delete" &&
+      window.confirm(`Delete "${item.item}" (${formatMoney(item.amount)})?`)
+    ) {
       showExpenseError("");
       deleteExpense(id);
     }
@@ -1949,17 +2243,14 @@ if (taskList) {
       const visibleRecords = getVisibleRecords();
       const totalPages = Math.max(
         1,
-        Math.ceil(visibleRecords.length / state.pageSize)
+        Math.ceil(visibleRecords.length / state.pageSize),
       );
 
       if (pageButton.dataset.pageAction === "previous" && state.page > 1) {
         state.page -= 1;
       }
 
-      if (
-        pageButton.dataset.pageAction === "next" &&
-        state.page < totalPages
-      ) {
+      if (pageButton.dataset.pageAction === "next" && state.page < totalPages) {
         state.page += 1;
       }
 
@@ -1981,7 +2272,7 @@ if (taskDetails) {
       subject: String(formData.get("subject") ?? "").trim(),
       dueDate: String(formData.get("dueDate") ?? ""),
       priority: String(formData.get("priority") ?? "Medium"),
-      description: String(formData.get("description") ?? "").trim()
+      description: String(formData.get("description") ?? "").trim(),
     });
   });
 
@@ -1995,7 +2286,10 @@ if (taskDetails) {
 
     const transitionButton = event.target.closest('[data-action="transition"]');
     if (transitionButton) {
-      transitionTask(transitionButton.dataset.id, transitionButton.dataset.nextStatus);
+      transitionTask(
+        transitionButton.dataset.id,
+        transitionButton.dataset.nextStatus,
+      );
       return;
     }
 
@@ -2003,7 +2297,7 @@ if (taskDetails) {
     if (!actionButton) return;
 
     const task = state.records.find(
-      (record) => record.id === actionButton.dataset.id
+      (record) => record.id === actionButton.dataset.id,
     );
     if (!task || !canEditTask(task)) {
       showMessage("Completed tasks can't be edited.");
@@ -2046,7 +2340,7 @@ if (taskForm) {
       status: "To do",
       createdAt: new Date().toISOString(),
       estimatedMinutes: 30,
-      workflowHistory: []
+      workflowHistory: [],
     });
 
     taskForm.reset();
@@ -2150,7 +2444,8 @@ if (archivesDialog && openArchivesButton) {
     if (archivesDialog.hasAttribute("open")) return;
     renderArchives();
 
-    if (typeof archivesDialog.showModal === "function") archivesDialog.showModal();
+    if (typeof archivesDialog.showModal === "function")
+      archivesDialog.showModal();
     else archivesDialog.setAttribute("open", "");
   });
 
@@ -2232,7 +2527,7 @@ function runStableIdAssertions() {
 
   console.assert(
     new Set(originalIds).size === originalIds.length,
-    "Assertion 1 failed: every task must have a unique stable ID."
+    "Assertion 1 failed: every task must have a unique stable ID.",
   );
 
   const sortedIds = [...originalRecords]
@@ -2242,18 +2537,18 @@ function runStableIdAssertions() {
   console.assert(
     originalIds.every((id) => sortedIds.includes(id)) &&
       sortedIds.every((id) => originalIds.includes(id)),
-    "Assertion 2 failed: sorting changed the set of stable IDs."
+    "Assertion 2 failed: sorting changed the set of stable IDs.",
   );
 
   const deletedId = originalRecords[0].id;
   const recordsAfterDelete = originalRecords.filter(
-    (record) => record.id !== deletedId
+    (record) => record.id !== deletedId,
   );
 
   console.assert(
     !recordsAfterDelete.some((record) => record.id === deletedId) &&
       recordsAfterDelete.every((record) => originalIds.includes(record.id)),
-    "Assertion 3 failed: deleting one record affected other stable IDs."
+    "Assertion 3 failed: deleting one record affected other stable IDs.",
   );
 
   console.log("Unit 3 stable-ID assertions completed.");
@@ -2276,7 +2571,7 @@ function runWorkflowTransitionAssertions() {
     ["Archived", "Archived"],
     ["In progress", "Blocked"],
     ["To do", "toString"],
-    ["To do", "__proto__"]
+    ["To do", "__proto__"],
   ];
 
   illegalCases.forEach(([status, nextStatus], index) => {
@@ -2287,18 +2582,18 @@ function runWorkflowTransitionAssertions() {
       description: "Record used to verify rejected transitions.",
       dueDate: "2026-12-31",
       status,
-      workflowHistory: []
+      workflowHistory: [],
     };
     const before = JSON.stringify(record);
     const result = attemptTransition(
       record,
       nextStatus,
-      "2026-10-02T00:00:00.000Z"
+      "2026-10-02T00:00:00.000Z",
     );
 
     console.assert(
       !result.allowed && JSON.stringify(record) === before,
-      `Workflow assertion ${index + 1} failed: rejected ${status} → ${nextStatus} changed the record.`
+      `Workflow assertion ${index + 1} failed: rejected ${status} → ${nextStatus} changed the record.`,
     );
   });
 
@@ -2309,7 +2604,7 @@ function runWorkflowTransitionAssertions() {
     ["In review", "Done"],
     ["In review", "In progress"],
     ["Done", "Archived"],
-    ["Done", "In progress"]
+    ["Done", "In progress"],
   ];
 
   legalCases.forEach(([status, nextStatus], index) => {
@@ -2320,12 +2615,12 @@ function runWorkflowTransitionAssertions() {
       description: "Record used to verify allowed transitions.",
       dueDate: "2026-12-31",
       status,
-      workflowHistory: []
+      workflowHistory: [],
     };
     const result = attemptTransition(
       record,
       nextStatus,
-      "2026-10-02T00:00:00.000Z"
+      "2026-10-02T00:00:00.000Z",
     );
 
     console.assert(
@@ -2333,12 +2628,12 @@ function runWorkflowTransitionAssertions() {
         result.record.status === nextStatus &&
         result.record.workflowHistory.length === 1 &&
         record.status === status,
-      `Workflow assertion failed: allowed ${status} → ${nextStatus} did not apply cleanly.`
+      `Workflow assertion failed: allowed ${status} → ${nextStatus} did not apply cleanly.`,
     );
   });
 
   console.log(
-    `Workflow assertions completed (${illegalCases.length} rejected, ${legalCases.length} allowed).`
+    `Workflow assertions completed (${illegalCases.length} rejected, ${legalCases.length} allowed).`,
   );
 }
 
@@ -2350,7 +2645,7 @@ const THEME_KEY = "studyhub-theme";
 const THEME_CHOICES = {
   dark: "Dark",
   light: "Light",
-  system: "Match my device"
+  system: "Match my device",
 };
 
 function getStoredTheme() {
@@ -2375,7 +2670,8 @@ const lightQuery = window.matchMedia
   : null;
 
 function resolveTheme(choice) {
-  if (choice === "system") return lightQuery && lightQuery.matches ? "light" : "dark";
+  if (choice === "system")
+    return lightQuery && lightQuery.matches ? "light" : "dark";
   return choice === "light" ? "light" : "dark";
 }
 

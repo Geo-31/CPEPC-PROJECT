@@ -27,7 +27,7 @@
     </script>
   </head>
   <body>
-    <header class="app-header" data-view="student admin">
+    <header class="app-header" data-view="student teacher admin">
       <p id="app-message" role="status" aria-live="polite" hidden></p>
       <form id="search-form" role="search" data-view="student">
         <label class="sr-only" for="global-search">Search tasks</label>
@@ -40,20 +40,30 @@
         />
       </form>
 
-      <button type="button" id="focus-toggle" aria-pressed="false" data-view="student">
+      <button
+        type="button"
+        id="focus-toggle"
+        aria-pressed="false"
+        data-view="student"
+      >
         Focus mode
       </button>
 
-      <div id="user-menu" class="user-menu" data-view="student admin">
+      <div id="user-menu" class="user-menu" data-view="student teacher admin">
         <span id="user-label"></span>
         <span id="user-role" class="status-pill status-todo"></span>
         <button type="button" id="logout-btn">Sign out</button>
       </div>
     </header>
 
-    <nav class="primary-nav" aria-label="Primary" data-view="student admin">
+    <nav
+      class="primary-nav"
+      aria-label="Primary"
+      data-view="student teacher admin"
+    >
       <ul>
         <li data-view="admin"><a href="#admin-dashboard">Dashboard</a></li>
+        <li data-view="teacher"><a href="#teacher-dashboard">Dashboard</a></li>
         <li data-view="student">
           <a href="#dashboard" aria-current="page">Dashboard</a>
         </li>
@@ -61,14 +71,18 @@
         <li data-view="student"><a href="#schedules">Schedules</a></li>
         <li data-view="student"><a href="#notes">Notes</a></li>
         <li data-view="student"><a href="#expenses">Expenses</a></li>
-        <li data-view="student"><a href="#focus">Focus</a></li>
         <li data-view="student"><a href="#metrics">Metrics</a></li>
         <li data-view="student"><a href="#settings">Settings</a></li>
       </ul>
     </nav>
 
-    <main id="app" data-view="student admin">
-      <section id="admin-dashboard" data-view="admin" aria-labelledby="admin-dashboard-title" hidden>
+    <main id="app" data-view="student teacher admin">
+      <section
+        id="admin-dashboard"
+        data-view="admin"
+        aria-labelledby="admin-dashboard-title"
+        hidden
+      >
         <h2 id="admin-dashboard-title">Admin dashboard</h2>
         <div class="content-card">
           <h3>Welcome, <span id="admin-name">Admin</span></h3>
@@ -79,7 +93,24 @@
         </div>
       </section>
 
-      <section id="dashboard" data-view="student" aria-labelledby="dashboard-title">
+      <section
+        id="teacher-dashboard"
+        data-view="teacher"
+        aria-labelledby="teacher-dashboard-title"
+        hidden
+      >
+        <h2 id="teacher-dashboard-title">Teacher Dashboard</h2>
+        <div class="content-card">
+          <h3>Welcome, Teacher!</h3>
+          <p>Manage academic activities and monitor student progress.</p>
+        </div>
+      </section>
+
+      <section
+        id="dashboard"
+        data-view="student"
+        aria-labelledby="dashboard-title"
+      >
         <h2 id="dashboard-title">Dashboard</h2>
 
         <!-- Unit 3 summary values are rendered from JavaScript state. -->
@@ -109,27 +140,49 @@
         </section>
 
         <!-- UNIT 9: Live derived metrics, rendered by renderMetrics() in app.js -->
-        <section id="system-metrics" class="content-card dashboard-wide" aria-labelledby="system-metrics-title">
-          <h3 id="system-metrics-title">Unit 9: Live Derived Metrics & Analytics</h3>
-          <p class="section-note">Computed dynamically from current JavaScript task records without third-party chart libraries.</p>
-        
+        <section
+          id="system-metrics"
+          class="content-card dashboard-wide"
+          aria-labelledby="system-metrics-title"
+        >
+          <div class="metrics-header">
+            <div>
+              <h3 id="system-metrics-title">
+                Unit 9: Live Derived Metrics & Analytics
+              </h3>
+              <p class="section-note">
+                Computed dynamically from current JavaScript task records
+                without third-party chart libraries.
+              </p>
+            </div>
+            <span class="live-badge"
+              ><span class="live-dot" aria-hidden="true"></span>Live</span
+            >
+          </div>
+
           <div class="dashboard-grid metrics-kpi-grid">
-            <article class="metric-card">
+            <article class="metric-card" data-tone="success">
               <h4>Completion Rate</h4>
               <strong id="metric-completion-rate">0%</strong>
+              <div class="metric-meter" aria-hidden="true">
+                <span id="metric-completion-meter"></span>
+              </div>
               <small>Finished vs total tasks</small>
             </article>
-            <article class="metric-card">
+            <article class="metric-card" data-tone="info">
               <h4>Average Study Time</h4>
               <strong id="metric-avg-time">0 min</strong>
               <small>Per active/pending task</small>
             </article>
-            <article class="metric-card">
+            <article class="metric-card" data-tone="danger">
               <h4>Overdue Rate</h4>
               <strong id="metric-overdue-rate">0%</strong>
+              <div class="metric-meter" aria-hidden="true">
+                <span id="metric-overdue-meter"></span>
+              </div>
               <small>Past due pending items</small>
             </article>
-            <article class="metric-card">
+            <article class="metric-card" data-tone="warning">
               <h4>In Progress</h4>
               <strong id="metric-in-progress-count">0</strong>
               <small>Tasks being worked on now</small>
@@ -137,26 +190,41 @@
           </div>
 
           <div class="visual-breakdown-container">
-            <h4>Status Distribution</h4>
-            <div id="status-distribution-bars" class="distribution-bars"></div>
+            <div class="breakdown-panel">
+              <h4>Status Distribution</h4>
+              <div
+                id="status-distribution-bars"
+                class="distribution-bars"
+              ></div>
+            </div>
 
-            <h4 style="margin-top: var(--space-4);">Priority Distribution</h4>
-            <div id="priority-distribution-bars" class="distribution-bars"></div>
+            <div class="breakdown-panel">
+              <h4>Priority Distribution</h4>
+              <div
+                id="priority-distribution-bars"
+                class="distribution-bars"
+              ></div>
+            </div>
           </div>
 
-          <div class="table-wrapper" style="margin-top: var(--space-4);">
-            <table>
-              <caption>Unit 9 Dashboard Verification Table</caption>
-              <thead>
-                <tr>
-                  <th>Metric Name</th>
-                  <th>Derivation Formula</th>
-                  <th>Program Calculated</th>
-                </tr>
-              </thead>
-              <tbody id="metric-verification-body"></tbody>
-            </table>
-          </div>
+          <details class="metrics-formulas">
+            <summary>How these numbers are calculated</summary>
+            <div class="table-wrapper">
+              <table>
+                <caption>
+                  Unit 9 Dashboard Verification Table
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Metric Name</th>
+                    <th>Derivation Formula</th>
+                    <th>Program Calculated</th>
+                  </tr>
+                </thead>
+                <tbody id="metric-verification-body"></tbody>
+              </table>
+            </div>
+          </details>
         </section>
 
         <!-- The leader's task form is retained as the ONE authoritative task form. -->
@@ -170,10 +238,20 @@
         <form
           id="task-form"
           class="dashboard-wide"
+          aria-labelledby="task-form-title"
           novalidate
         >
-          <div>
-            <label for="task-title">Task title</label>
+          <div class="form-head">
+            <h3 id="task-form-title">Add a task</h3>
+            <p class="form-hint">
+              <span class="req" aria-hidden="true">*</span> Required
+            </p>
+          </div>
+
+          <div class="field-title">
+            <label for="task-title"
+              >Task title <span class="req" aria-hidden="true">*</span></label
+            >
             <input
               type="text"
               id="task-title"
@@ -183,22 +261,10 @@
             />
           </div>
 
-          <div>
-            <label for="task-due">Due date</label>
-            <input type="date" id="task-due" name="dueDate" />
-          </div>
-
-          <div>
-            <label for="task-priority">Priority</label>
-            <select id="task-priority" name="priority">
-              <option value="Low">Low</option>
-              <option value="Medium" selected>Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="task-subject">Subject</label>
+          <div class="field-subject">
+            <label for="task-subject"
+              >Subject <span class="req" aria-hidden="true">*</span></label
+            >
             <input
               type="text"
               id="task-subject"
@@ -208,7 +274,23 @@
             />
           </div>
 
-          <div>
+          <div class="field-due">
+            <label for="task-due"
+              >Due date <span class="req" aria-hidden="true">*</span></label
+            >
+            <input type="date" id="task-due" name="dueDate" required />
+          </div>
+
+          <div class="field-priority">
+            <label for="task-priority">Priority</label>
+            <select id="task-priority" name="priority">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+
+          <div class="field-notes">
             <label for="task-notes">Notes</label>
             <input
               type="text"
@@ -222,7 +304,12 @@
         </form>
       </section>
 
-      <section id="tasks" data-view="student" aria-labelledby="tasks-title" hidden>
+      <section
+        id="tasks"
+        data-view="student"
+        aria-labelledby="tasks-title"
+        hidden
+      >
         <h2 id="tasks-title">Tasks</h2>
         <p id="workflow-message" role="status" aria-live="polite" hidden></p>
 
@@ -343,12 +430,13 @@
             </div>
 
             <p class="section-note">
-              Tasks that finished the whole workflow. Archiving a Done task moves
-              it here, and archived tasks can't be changed.
+              Tasks that finished the whole workflow. Archiving a Done task
+              moves it here, and archived tasks can't be changed.
             </p>
 
             <p id="archive-empty-state">
-              No archived tasks yet. Finish a task, then use Archive to file it here.
+              No archived tasks yet. Finish a task, then use Archive to file it
+              here.
             </p>
 
             <div id="archive-table-wrapper" class="table-wrapper" hidden>
@@ -374,7 +462,12 @@
         </dialog>
       </section>
 
-      <section id="schedules" data-view="student" aria-labelledby="schedules-title" hidden>
+      <section
+        id="schedules"
+        data-view="student"
+        aria-labelledby="schedules-title"
+        hidden
+      >
         <h2 id="schedules-title">Schedules</h2>
 
         <div class="content-card">
@@ -399,7 +492,12 @@
 
             <div>
               <label for="schedule-start">Start time</label>
-              <input type="time" id="schedule-start" name="startTime" required />
+              <input
+                type="time"
+                id="schedule-start"
+                name="startTime"
+                required
+              />
             </div>
 
             <div>
@@ -439,7 +537,9 @@
             </div>
 
             <button type="submit" id="schedule-submit">Add class</button>
-            <button type="button" id="schedule-cancel" hidden>Cancel edit</button>
+            <button type="button" id="schedule-cancel" hidden>
+              Cancel edit
+            </button>
           </form>
         </div>
 
@@ -466,7 +566,12 @@
         </div>
       </section>
 
-      <section id="notes" data-view="student" aria-labelledby="notes-title" hidden>
+      <section
+        id="notes"
+        data-view="student"
+        aria-labelledby="notes-title"
+        hidden
+      >
         <h2 id="notes-title">Notes</h2>
 
         <div class="content-card">
@@ -520,7 +625,12 @@
         </div>
       </section>
 
-      <section id="expenses" data-view="student" aria-labelledby="expenses-title" hidden>
+      <section
+        id="expenses"
+        data-view="student"
+        aria-labelledby="expenses-title"
+        hidden
+      >
         <h2 id="expenses-title">Expenses</h2>
 
         <div class="content-card">
@@ -577,7 +687,9 @@
             </div>
 
             <button type="submit" id="expense-submit">Add expense</button>
-            <button type="button" id="expense-cancel" hidden>Cancel edit</button>
+            <button type="button" id="expense-cancel" hidden>
+              Cancel edit
+            </button>
           </form>
         </div>
 
@@ -610,7 +722,12 @@
         </div>
       </section>
 
-      <section id="focus" data-view="student" aria-labelledby="focus-title" hidden>
+      <section
+        id="focus"
+        data-view="student"
+        aria-labelledby="focus-title"
+        hidden
+      >
         <h2 id="focus-title">Focus</h2>
         <div class="content-card focus-panel">
           <p>
@@ -619,12 +736,23 @@
         </div>
       </section>
 
-      <section id="settings" data-view="student" aria-labelledby="settings-title" hidden>
+      <section
+        id="settings"
+        data-view="student"
+        aria-labelledby="settings-title"
+        hidden
+      >
         <h2 id="settings-title">Settings</h2>
 
-        <section id="appearance-settings" class="content-card" aria-labelledby="appearance-title">
+        <section
+          id="appearance-settings"
+          class="content-card"
+          aria-labelledby="appearance-title"
+        >
           <h3 id="appearance-title">Appearance</h3>
-          <p class="section-note">Choose how StudyHub looks. Your choice is remembered on this device.</p>
+          <p class="section-note">
+            Choose how StudyHub looks. Your choice is remembered on this device.
+          </p>
 
           <fieldset class="theme-options">
             <legend class="sr-only">Color theme</legend>
@@ -640,7 +768,12 @@
             </label>
 
             <label class="theme-option" for="theme-system">
-              <input type="radio" id="theme-system" name="theme" value="system" />
+              <input
+                type="radio"
+                id="theme-system"
+                name="theme"
+                value="system"
+              />
               Match my device
             </label>
           </fieldset>
@@ -649,89 +782,137 @@
         <!-- ========================================== -->
         <!-- UNIT 8: Data Management                  -->
         <!-- ========================================== -->
-        <section id="system-data" class="content-card" aria-labelledby="system-data-title">
-        <h3 id="system-data-title">Unit 8: Persistence, Backup, & Audit Trail</h3>
-        <p class="section-note">Survives page refresh via versioned localStorage schema, provides safe imports, and records state mutations.</p>
-        
-        <div id="storage-status-message" role="status" aria-live="polite" hidden></div>
+        <section
+          id="system-data"
+          class="content-card"
+          aria-labelledby="system-data-title"
+        >
+          <h3 id="system-data-title">
+            Unit 8: Persistence, Backup, & Audit Trail
+          </h3>
+          <p class="section-note">
+            Survives page refresh via versioned localStorage schema, provides
+            safe imports, and records state mutations.
+          </p>
 
-        <div class="persistence-controls">
-          <button type="button" id="btn-export-json">Export JSON</button>
-          
-          <label for="import-json-file" class="button-file-label">Select JSON to Import</label>
-          <input type="file" id="import-json-file" accept=".json" class="sr-only" />
+          <div
+            id="storage-status-message"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
 
-          <button type="button" id="btn-reset-data" class="btn-danger">Reset to Defaults</button>
-        </div>
+          <div class="persistence-controls">
+            <button type="button" id="btn-export-json">Export JSON</button>
 
-        <div id="import-preview-box" class="sub-card" hidden>
-          <h4>Import Payload Preview</h4>
-          <p id="import-preview-text"></p>
-          <div class="task-actions">
-            <button type="button" id="btn-confirm-import">Confirm & Replace</button>
-            <button type="button" id="btn-cancel-import">Cancel</button>
+            <label for="import-json-file" class="button-file-label"
+              >Select JSON to Import</label
+            >
+            <input
+              type="file"
+              id="import-json-file"
+              accept=".json"
+              class="sr-only"
+            />
+
+            <button type="button" id="btn-reset-data" class="btn-danger">
+              Reset to Defaults
+            </button>
           </div>
-        </div>
 
-        <div class="audit-trail-container">
-          <h4>System Audit Trail</h4>
-          <div class="table-wrapper">
-            <table>
-              <caption>Recent system actions (Unit 8)</caption>
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Actor</th>
-                  <th>Action</th>
-                  <th>Target</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody id="audit-log-body"></tbody>
-            </table>
+          <div id="import-preview-box" class="sub-card" hidden>
+            <h4>Import Payload Preview</h4>
+            <p id="import-preview-text"></p>
+            <div class="task-actions">
+              <button type="button" id="btn-confirm-import">
+                Confirm & Replace
+              </button>
+              <button type="button" id="btn-cancel-import">Cancel</button>
+            </div>
           </div>
-        </div>
+
+          <div class="audit-trail-container">
+            <h4>System Audit Trail</h4>
+            <div class="table-wrapper">
+              <table>
+                <caption>
+                  Recent system actions (Unit 8)
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-log-body"></tbody>
+              </table>
+            </div>
+          </div>
         </section>
       </section>
 
       <!-- ========================================== -->
       <!-- UNIT 10: Metrics page                       -->
       <!-- ========================================== -->
-      <section id="metrics" data-view="student" aria-labelledby="metrics-title" hidden>
+      <section
+        id="metrics"
+        data-view="student"
+        aria-labelledby="metrics-title"
+        hidden
+      >
         <h2 id="metrics-title">Metrics</h2>
 
-      <!-- ========================================== -->
-      <!-- UNIT 10: Integrated QA Verification Suite  -->
-      <!-- ========================================== -->
-      <section id="qa-suite" class="content-card" aria-labelledby="qa-suite-title">
-        <h3 id="qa-suite-title">Unit 10: Integrated Front-End Quality Assurance</h3>
-        <p class="section-note">Automated stress tests covering storage failure recovery, illegal workflow transitions, and resilience.</p>
-        
-        <div class="qa-score-card">
-          <p><strong>Weighted Quality Score:</strong> <span id="qa-quality-score">Calculating...</span></p>
-          <p><small>Formula: Q = 0.30F + 0.20R + 0.20A + 0.15V + 0.15C</small></p>
-        </div>
+        <!-- ========================================== -->
+        <!-- UNIT 10: Integrated QA Verification Suite  -->
+        <!-- ========================================== -->
+        <section
+          id="qa-suite"
+          class="content-card"
+          aria-labelledby="qa-suite-title"
+        >
+          <h3 id="qa-suite-title">
+            Unit 10: Integrated Front-End Quality Assurance
+          </h3>
+          <p class="section-note">
+            Automated stress tests covering storage failure recovery, illegal
+            workflow transitions, and resilience.
+          </p>
 
-        <div class="table-wrapper">
-          <table>
-            <caption>Automated Verification Results</caption>
-            <thead>
-              <tr>
-                <th>Test ID</th>
-                <th>Precondition</th>
-                <th>Action</th>
-                <th>Expected Result</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody id="qa-test-results-body"></tbody>
-          </table>
-        </div>
-      </section>
+          <div class="qa-score-card">
+            <p>
+              <strong>Weighted Quality Score:</strong>
+              <span id="qa-quality-score">Calculating...</span>
+            </p>
+            <p>
+              <small>Formula: Q = 0.30F + 0.20R + 0.20A + 0.15V + 0.15C</small>
+            </p>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <caption>
+                Automated Verification Results
+              </caption>
+              <thead>
+                <tr>
+                  <th>Test ID</th>
+                  <th>Precondition</th>
+                  <th>Action</th>
+                  <th>Expected Result</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody id="qa-test-results-body"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </main>
 
-    <footer data-view="student admin">Front-end prototype</footer>
+    <footer data-view="student teacher admin">Front-end prototype</footer>
 
     <!-- Shown only when nobody is signed in. -->
     <main id="login-view" data-view="guest" aria-labelledby="login-title">
@@ -741,6 +922,14 @@
         <div id="login-error" role="alert" hidden></div>
 
         <form id="login-form" novalidate>
+          <div>
+            <label for="login-role">Sign in as</label>
+            <select id="login-role" name="role" required>
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+            </select>
+          </div>
+
           <div>
             <label for="login-username">Username</label>
             <input
