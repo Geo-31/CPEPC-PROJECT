@@ -27,9 +27,9 @@
     </script>
   </head>
   <body>
-    <header class="app-header">
+    <header class="app-header" data-view="student admin">
       <p id="app-message" role="status" aria-live="polite" hidden></p>
-      <form id="search-form" role="search">
+      <form id="search-form" role="search" data-view="student">
         <label class="sr-only" for="global-search">Search tasks</label>
         <input
           id="global-search"
@@ -40,38 +40,46 @@
         />
       </form>
 
-      <button type="button" id="focus-toggle" aria-pressed="false">
+      <button type="button" id="focus-toggle" aria-pressed="false" data-view="student">
         Focus mode
       </button>
+
+      <div id="user-menu" class="user-menu" data-view="student admin">
+        <span id="user-label"></span>
+        <span id="user-role" class="status-pill status-todo"></span>
+        <button type="button" id="logout-btn">Sign out</button>
+      </div>
     </header>
 
-    <nav class="primary-nav" aria-label="Primary">
+    <nav class="primary-nav" aria-label="Primary" data-view="student admin">
       <ul>
-        <li>
-          <a
-            href="#dashboard"
-            aria-current="page"
-            >Dashboard</a
-          >
+        <li data-view="admin"><a href="#admin-dashboard">Dashboard</a></li>
+        <li data-view="student">
+          <a href="#dashboard" aria-current="page">Dashboard</a>
         </li>
-        <li><a href="#tasks">Tasks</a></li>
-        <li>
-          <a href="#schedules">Schedules</a>
-        </li>
-        <li><a href="#notes">Notes</a></li>
-        <li>
-          <a href="#expenses">Expenses</a>
-        </li>
-        <li><a href="#focus">Focus</a></li>
-        <li><a href="#metrics">Metrics</a></li>
-        <li>
-          <a href="#settings">Settings</a>
-        </li>
+        <li data-view="student"><a href="#tasks">Tasks</a></li>
+        <li data-view="student"><a href="#schedules">Schedules</a></li>
+        <li data-view="student"><a href="#notes">Notes</a></li>
+        <li data-view="student"><a href="#expenses">Expenses</a></li>
+        <li data-view="student"><a href="#focus">Focus</a></li>
+        <li data-view="student"><a href="#metrics">Metrics</a></li>
+        <li data-view="student"><a href="#settings">Settings</a></li>
       </ul>
     </nav>
 
-    <main id="app">
-      <section id="dashboard" aria-labelledby="dashboard-title">
+    <main id="app" data-view="student admin">
+      <section id="admin-dashboard" data-view="admin" aria-labelledby="admin-dashboard-title" hidden>
+        <h2 id="admin-dashboard-title">Admin dashboard</h2>
+        <div class="content-card">
+          <h3>Welcome, <span id="admin-name">Admin</span></h3>
+          <p class="section-note">
+            This is the admin workspace. Student sections are not available to
+            this role. The new dashboard will be built here.
+          </p>
+        </div>
+      </section>
+
+      <section id="dashboard" data-view="student" aria-labelledby="dashboard-title">
         <h2 id="dashboard-title">Dashboard</h2>
 
         <!-- Unit 3 summary values are rendered from JavaScript state. -->
@@ -98,6 +106,57 @@
         <section id="dash-focus" class="dashboard-metric">
           <h3>Estimated study time</h3>
           <strong id="summary-study-time">0.0 hours</strong>
+        </section>
+
+        <!-- UNIT 9: Live derived metrics, rendered by renderMetrics() in app.js -->
+        <section id="system-metrics" class="content-card dashboard-wide" aria-labelledby="system-metrics-title">
+          <h3 id="system-metrics-title">Unit 9: Live Derived Metrics & Analytics</h3>
+          <p class="section-note">Computed dynamically from current JavaScript task records without third-party chart libraries.</p>
+        
+          <div class="dashboard-grid metrics-kpi-grid">
+            <article class="metric-card">
+              <h4>Completion Rate</h4>
+              <strong id="metric-completion-rate">0%</strong>
+              <small>Done vs Total Tasks</small>
+            </article>
+            <article class="metric-card">
+              <h4>Average Study Time</h4>
+              <strong id="metric-avg-time">0 min</strong>
+              <small>Per active/pending task</small>
+            </article>
+            <article class="metric-card">
+              <h4>Overdue Rate</h4>
+              <strong id="metric-overdue-rate">0%</strong>
+              <small>Past due pending items</small>
+            </article>
+            <article class="metric-card">
+              <h4>In Progress</h4>
+              <strong id="metric-in-progress-count">0</strong>
+              <small>Tasks being worked on now</small>
+            </article>
+          </div>
+
+          <div class="visual-breakdown-container">
+            <h4>Status Distribution</h4>
+            <div id="status-distribution-bars" class="distribution-bars"></div>
+
+            <h4 style="margin-top: var(--space-4);">Priority Distribution</h4>
+            <div id="priority-distribution-bars" class="distribution-bars"></div>
+          </div>
+
+          <div class="table-wrapper" style="margin-top: var(--space-4);">
+            <table>
+              <caption>Unit 9 Dashboard Verification Table</caption>
+              <thead>
+                <tr>
+                  <th>Metric Name</th>
+                  <th>Derivation Formula</th>
+                  <th>Program Calculated</th>
+                </tr>
+              </thead>
+              <tbody id="metric-verification-body"></tbody>
+            </table>
+          </div>
         </section>
 
         <!-- The leader's task form is retained as the ONE authoritative task form. -->
@@ -163,7 +222,7 @@
         </form>
       </section>
 
-      <section id="tasks" aria-labelledby="tasks-title" hidden>
+      <section id="tasks" data-view="student" aria-labelledby="tasks-title" hidden>
         <h2 id="tasks-title">Tasks</h2>
         <p id="workflow-message" role="status" aria-live="polite" hidden></p>
 
@@ -263,7 +322,7 @@
         </aside>
       </section>
 
-      <section id="schedules" aria-labelledby="schedules-title" hidden>
+      <section id="schedules" data-view="student" aria-labelledby="schedules-title" hidden>
         <h2 id="schedules-title">Schedules</h2>
 
         <div class="content-card">
@@ -355,7 +414,7 @@
         </div>
       </section>
 
-      <section id="notes" aria-labelledby="notes-title" hidden>
+      <section id="notes" data-view="student" aria-labelledby="notes-title" hidden>
         <h2 id="notes-title">Notes</h2>
 
         <div class="content-card">
@@ -409,7 +468,7 @@
         </div>
       </section>
 
-      <section id="expenses" aria-labelledby="expenses-title" hidden>
+      <section id="expenses" data-view="student" aria-labelledby="expenses-title" hidden>
         <h2 id="expenses-title">Expenses</h2>
 
         <div class="content-card">
@@ -499,7 +558,7 @@
         </div>
       </section>
 
-      <section id="focus" aria-labelledby="focus-title" hidden>
+      <section id="focus" data-view="student" aria-labelledby="focus-title" hidden>
         <h2 id="focus-title">Focus</h2>
         <div class="content-card focus-panel">
           <p>
@@ -508,7 +567,7 @@
         </div>
       </section>
 
-      <section id="settings" aria-labelledby="settings-title" hidden>
+      <section id="settings" data-view="student" aria-labelledby="settings-title" hidden>
         <h2 id="settings-title">Settings</h2>
 
         <section id="appearance-settings" class="content-card" aria-labelledby="appearance-title">
@@ -584,60 +643,10 @@
       </section>
 
       <!-- ========================================== -->
-      <!-- UNIT 9 & 10: Metrics page                  -->
+      <!-- UNIT 10: Metrics page                       -->
       <!-- ========================================== -->
-      <section id="metrics" aria-labelledby="metrics-title" hidden>
+      <section id="metrics" data-view="student" aria-labelledby="metrics-title" hidden>
         <h2 id="metrics-title">Metrics</h2>
-
-      <section id="system-metrics" class="content-card" aria-labelledby="system-metrics-title">
-        <h3 id="system-metrics-title">Unit 9: Live Derived Metrics & Analytics</h3>
-        <p class="section-note">Computed dynamically from current JavaScript task records without third-party chart libraries.</p>
-        
-        <div class="dashboard-grid metrics-kpi-grid">
-          <article class="metric-card">
-            <h4>Completion Rate</h4>
-            <strong id="metric-completion-rate">0%</strong>
-            <small>Done vs Total Tasks</small>
-          </article>
-          <article class="metric-card">
-            <h4>Average Study Time</h4>
-            <strong id="metric-avg-time">0 min</strong>
-            <small>Per active/pending task</small>
-          </article>
-          <article class="metric-card">
-            <h4>Overdue Rate</h4>
-            <strong id="metric-overdue-rate">0%</strong>
-            <small>Past due pending items</small>
-          </article>
-          <article class="metric-card">
-            <h4>In Progress</h4>
-            <strong id="metric-in-progress-count">0</strong>
-            <small>Tasks being worked on now</small>
-          </article>
-        </div>
-
-        <div class="visual-breakdown-container">
-          <h4>Status Distribution</h4>
-          <div id="status-distribution-bars" class="distribution-bars"></div>
-
-          <h4 style="margin-top: var(--space-4);">Priority Distribution</h4>
-          <div id="priority-distribution-bars" class="distribution-bars"></div>
-        </div>
-
-        <div class="table-wrapper" style="margin-top: var(--space-4);">
-          <table>
-            <caption>Unit 9 Dashboard Verification Table</caption>
-            <thead>
-              <tr>
-                <th>Metric Name</th>
-                <th>Derivation Formula</th>
-                <th>Program Calculated</th>
-              </tr>
-            </thead>
-            <tbody id="metric-verification-body"></tbody>
-          </table>
-        </div>
-      </section>
 
       <!-- ========================================== -->
       <!-- UNIT 10: Integrated QA Verification Suite  -->
@@ -670,7 +679,44 @@
       </section>
     </main>
 
-    <footer>Front-end prototype</footer>
+    <footer data-view="student admin">Front-end prototype</footer>
+
+    <!-- Shown only when nobody is signed in. -->
+    <main id="login-view" data-view="guest" aria-labelledby="login-title">
+      <section class="content-card login-card">
+        <h1 id="login-title" class="login-brand">StudyHub</h1>
+        <p class="section-note">Sign in to continue.</p>
+        <div id="login-error" role="alert" hidden></div>
+
+        <form id="login-form" novalidate>
+          <div>
+            <label for="login-username">Username</label>
+            <input
+              type="text"
+              id="login-username"
+              name="username"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              required
+            />
+          </div>
+
+          <div>
+            <label for="login-password">Password</label>
+            <input
+              type="password"
+              id="login-password"
+              name="password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <button type="submit" id="login-submit">Sign in</button>
+        </form>
+      </section>
+    </main>
     <script src="app.js" defer></script>
   </body>
 </html>

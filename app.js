@@ -30,10 +30,211 @@ const TRANSITION_CONDITIONS = {
     )
 };
 
-const session = {
-  userId: "student-001",
-  displayName: "Student"
+/* -----------------------------
+   0. Authentication + role-based views (RBAC)
+
+   Front-end prototype only: this controls what each role SEES. Anyone can
+   open DevTools and bypass it, so real access control must be enforced by a
+   server. Passwords are stored as SHA-256 hashes of "studyhub:<user>:<pass>",
+   never as plain text, but that is still not production-grade.
+   ----------------------------- */
+
+/* A role maps to a "view". Any role without its own view sees the student view. */
+const ROLES = {
+  admin: { label: "Administrator", view: "admin" },
+  student: { label: "Student", view: "student" }
 };
+
+const USERS = [
+  {
+    id: "admin-001",
+    username: "admin",
+    displayName: "Admin",
+    role: "admin",
+    passwordHash: "9f75113838510c02f916ffc95d7b903078d74c35d9912ec30c2a4866cbcc0d83"
+  },
+  {
+    id: "student-001",
+    username: "student",
+    displayName: "Student",
+    role: "student",
+    passwordHash: "652cb50427667500e55bade9c407dd0f648e4b80c423bb5a4c18231c5e88a636"
+  }
+];
+
+const SESSION_KEY = "studyhub-session";
+const MAX_FAILED_LOGINS = 5;
+const LOCKOUT_MS = 30000;
+
+/* Filled in from the signed-in user; logAudit() reads displayName. */
+const session = { userId: null, displayName: "Guest", role: null };
+
+function readSessionUserId() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw).userId : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+}
+
+/* The role is always looked up from USERS, never trusted from storage. */
+function getSessionUser() {
+  const id = readSessionUserId();
+  return USERS.find((user) => user.id === id) ?? null;
+}
+
+function viewForUser(user) {
+  if (!user) return "guest";
+  return ROLES[user.role]?.view ?? "student";
+}
+
+const currentUser = getSessionUser();
+const currentView = viewForUser(currentUser);
+
+if (currentUser) {
+  session.userId = currentUser.id;
+  session.displayName = currentUser.displayName;
+  session.role = currentUser.role;
+} else {
+  clearSession(); /* drops a stale or tampered session */
+}
+
+/* Remove everything the current view should not have, then reveal the page. */
+function applyRoleView() {
+  document.querySelectorAll("[data-view]").forEach((element) => {
+    if (!element.dataset.view.split(/\s+/).includes(currentView)) {
+      element.remove();
+    }
+  });
+
+  const root = document.documentElement;
+  root.dataset.appView = currentView;
+  if (currentUser) root.dataset.role = currentUser.role;
+  document.body.classList.toggle("logged-out", !currentUser);
+
+  if (currentUser) {
+    setLabel("#user-label", currentUser.displayName);
+    setLabel("#user-role", ROLES[currentUser.role]?.label ?? currentUser.role);
+  }
+
+  if (currentView === "admin") {
+    setLabel("#admin-name", currentUser.displayName);
+    const adminSection = document.querySelector("#admin-dashboard");
+    if (adminSection) adminSection.hidden = false;
+    document
+      .querySelector(".primary-nav a")
+      ?.setAttribute("aria-current", "page");
+  }
+
+  root.dataset.ready = "true";
+}
+
+function setLabel(selector, text) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = text;
+}
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/* Resolves to the matching user, or null. Hashes even for unknown names. */
+async function authenticate(username, password) {
+  const name = username.trim().toLowerCase();
+  const user = USERS.find((entry) => entry.username === name);
+  const hash = await sha256Hex(`studyhub:${name}:${password}`);
+  return user && user.passwordHash === hash ? user : null;
+}
+
+function showLoginError(message) {
+  const box = document.querySelector("#login-error");
+  if (!box) return;
+  box.textContent = message;
+  box.hidden = !message;
+}
+
+let failedLogins = 0;
+let lockedUntil = 0;
+
+const loginForm = document.querySelector("#login-form");
+
+if (loginForm) {
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const remainingMs = lockedUntil - Date.now();
+    if (remainingMs > 0) {
+      showLoginError(
+        `Too many attempts. Try again in ${Math.ceil(remainingMs / 1000)} seconds.`
+      );
+      return;
+    }
+
+    const data = new FormData(loginForm);
+    const username = String(data.get("username") ?? "");
+    const password = String(data.get("password") ?? "");
+
+    if (!username.trim() || !password) {
+      showLoginError("Enter your username and password.");
+      return;
+    }
+
+    let user;
+    try {
+      user = await authenticate(username, password);
+    } catch {
+      showLoginError("Sign-in needs a secure page (https or localhost).");
+      return;
+    }
+
+    if (!user) {
+      failedLogins += 1;
+      loginForm.elements.password.value = "";
+
+      if (failedLogins >= MAX_FAILED_LOGINS) {
+        failedLogins = 0;
+        lockedUntil = Date.now() + LOCKOUT_MS;
+        showLoginError("Too many attempts. Try again in 30 seconds.");
+      } else {
+        showLoginError("Incorrect username or password.");
+      }
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }));
+    } catch {
+      showLoginError("Your browser is blocking storage, so sign-in can't be kept.");
+      return;
+    }
+
+    window.location.reload(); /* boots cleanly into the right view */
+  });
+}
+
+const logoutButton = document.querySelector("#logout-btn");
+
+if (logoutButton) {
+  logoutButton.addEventListener("click", () => {
+    clearSession();
+    window.location.reload();
+  });
+}
+
+applyRoleView();
 
 /* -----------------------------
      1. Authoritative application state
@@ -559,6 +760,111 @@ function renderSummary(records) {
   setText("#summary-study-time", `${(totalStudyMinutes / 60).toFixed(1)} hours`);
 }
 
+/* -----------------------------
+   Unit 9: Live derived metrics
+   Everything here is computed from state.records on every render(),
+   so it can never drift from the task list. No chart library: the
+   distribution "charts" are plain styled bars.
+   ----------------------------- */
+
+function percentOf(part, whole) {
+  return whole > 0 ? Math.round((part / whole) * 100) : 0;
+}
+
+function computeMetrics(records) {
+  const total = records.length;
+  const done = records.filter((task) => task.status === "Done").length;
+  const inProgress = records.filter((task) => task.status === "In progress").length;
+  const pending = records.filter((task) => task.status !== "Done");
+  const overdue = pending.filter(getIsOverdue).length;
+  const pendingMinutes = pending.reduce((sum, task) => sum + task.estimatedMinutes, 0);
+
+  return {
+    total,
+    done,
+    inProgress,
+    pendingCount: pending.length,
+    overdue,
+    pendingMinutes,
+    completionRate: percentOf(done, total),
+    overdueRate: percentOf(overdue, pending.length),
+    avgMinutes: pending.length > 0 ? Math.round(pendingMinutes / pending.length) : 0,
+    byStatus: WORKFLOW_PATH.map((label) => ({
+      label,
+      count: records.filter((task) => task.status === label).length
+    })),
+    byPriority: ["High", "Medium", "Low"].map((label) => ({
+      label,
+      count: records.filter((task) => task.priority === label).length
+    }))
+  };
+}
+
+function renderDistributionBars(selector, rows, total) {
+  const container = document.querySelector(selector);
+  if (!container) return;
+
+  container.innerHTML = rows
+    .map(({ label, count }) => {
+      const percent = percentOf(count, total);
+      return `
+        <div class="bar-row">
+          <span>${escapeHTML(label)}</span>
+          <div class="bar-track" role="img" aria-label="${escapeHTML(label)}: ${count} of ${total} tasks (${percent}%)">
+            <span class="bar-fill" style="width: ${percent}%"></span>
+          </div>
+          <span>${count}</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderMetrics(records) {
+  const m = computeMetrics(records);
+
+  setText("#metric-completion-rate", `${m.completionRate}%`);
+  setText("#metric-avg-time", `${m.avgMinutes} min`);
+  setText("#metric-overdue-rate", `${m.overdueRate}%`);
+  setText("#metric-in-progress-count", String(m.inProgress));
+
+  renderDistributionBars("#status-distribution-bars", m.byStatus, m.total);
+  renderDistributionBars("#priority-distribution-bars", m.byPriority, m.total);
+
+  const body = document.querySelector("#metric-verification-body");
+  if (!body) return;
+
+  const rows = [
+    [
+      "Completion rate",
+      "Done tasks ÷ all tasks × 100",
+      m.total > 0 ? `${m.done} ÷ ${m.total} × 100 = ${m.completionRate}%` : "No tasks → 0%"
+    ],
+    [
+      "Average study time",
+      "Total estimated minutes of unfinished tasks ÷ number of unfinished tasks",
+      m.pendingCount > 0
+        ? `${m.pendingMinutes} ÷ ${m.pendingCount} = ${m.avgMinutes} min`
+        : "No unfinished tasks → 0 min"
+    ],
+    [
+      "Overdue rate",
+      "Unfinished tasks past their due date ÷ unfinished tasks × 100",
+      m.pendingCount > 0
+        ? `${m.overdue} ÷ ${m.pendingCount} × 100 = ${m.overdueRate}%`
+        : "No unfinished tasks → 0%"
+    ],
+    ["In progress", "Count of tasks with status \"In progress\"", String(m.inProgress)]
+  ];
+
+  body.innerHTML = rows
+    .map(
+      ([name, formula, result]) =>
+        `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(formula)}</td><td>${escapeHTML(result)}</td></tr>`
+    )
+    .join("");
+}
+
 function renderEmptyState(records) {
   const emptyState = document.querySelector("#task-empty-state");
   const taskList = document.querySelector("#task-list");
@@ -743,6 +1049,7 @@ function render() {
   const visibleRecords = getVisibleRecords();
 
   renderSummary(state.records);
+  renderMetrics(state.records);
   renderEmptyState(visibleRecords);
   renderRecords(visibleRecords);
   renderPagination(visibleRecords.length);
