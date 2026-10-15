@@ -89,7 +89,7 @@
         </section>
 
         <section id="dash-tomorrow" class="dashboard-metric">
-          <h3>Done</h3>
+          <h3>Finished</h3>
           <strong id="summary-completed">0</strong>
         </section>
 
@@ -117,7 +117,7 @@
             <article class="metric-card">
               <h4>Completion Rate</h4>
               <strong id="metric-completion-rate">0%</strong>
-              <small>Done vs Total Tasks</small>
+              <small>Finished vs total tasks</small>
             </article>
             <article class="metric-card">
               <h4>Average Study Time</h4>
@@ -236,6 +236,7 @@
                 <option value="ALL">All</option>
                 <option value="To do">To do</option>
                 <option value="In progress">In progress</option>
+                <option value="In review">In review</option>
                 <option value="Done">Done</option>
               </select>
             </div>
@@ -281,8 +282,21 @@
         </section>
 
         <section id="task-list" aria-labelledby="task-list-title">
-          <h3 id="task-list-title">Task list</h3>
-          <p id="task-result-count" aria-live="polite"></p>
+          <div class="list-header">
+            <div>
+              <h3 id="task-list-title">Task list</h3>
+              <p id="task-result-count" aria-live="polite"></p>
+            </div>
+
+            <button
+              type="button"
+              id="open-archives"
+              aria-haspopup="dialog"
+              aria-controls="archives-dialog"
+            >
+              Archives (0)
+            </button>
+          </div>
 
           <div class="table-wrapper">
             <table>
@@ -320,6 +334,44 @@
           <h3 id="task-details-title">Task details</h3>
           <p>Select a task to inspect its full record.</p>
         </aside>
+
+        <dialog id="archives-dialog" aria-labelledby="archives-title">
+          <div class="dialog-body">
+            <div class="dialog-header">
+              <h3 id="archives-title">Archives</h3>
+              <button type="button" id="close-archives">Close</button>
+            </div>
+
+            <p class="section-note">
+              Tasks that finished the whole workflow. Archiving a Done task moves
+              it here, and archived tasks can't be changed.
+            </p>
+
+            <p id="archive-empty-state">
+              No archived tasks yet. Finish a task, then use Archive to file it here.
+            </p>
+
+            <div id="archive-table-wrapper" class="table-wrapper" hidden>
+              <table>
+                <caption>
+                  Archived tasks
+                </caption>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Task</th>
+                    <th>Subject</th>
+                    <th>Due</th>
+                    <th>Priority</th>
+                    <th>Archived on</th>
+                    <th>History</th>
+                  </tr>
+                </thead>
+                <tbody id="archive-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </dialog>
       </section>
 
       <section id="schedules" data-view="student" aria-labelledby="schedules-title" hidden>

@@ -732,10 +732,21 @@ body.focus-mode .focus-panel {
   border-color: transparent;
 }
 
+.status-in-review {
+  color: var(--notes);
+  background: var(--notes-bg);
+  border-color: transparent;
+}
+
 .status-done {
   color: var(--success);
   background: var(--brand-dim);
   border-color: transparent;
+}
+
+.status-archived {
+  color: var(--muted);
+  background: var(--card);
 }
 
 .badge-overdue {
@@ -1053,4 +1064,66 @@ body.logged-out {
 /* Unit 9 metrics now live inside the dashboard grid, which supplies its own gap. */
 #dashboard > #system-metrics {
   margin-bottom: 0;
+}
+
+/* Archives table: expandable status history per archived task. */
+.archive-history summary {
+  cursor: pointer;
+  color: var(--secondary);
+}
+
+.archive-history ol {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+/* Task list header: title and count on the left, Archives button on the right. */
+.list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Archives modal */
+#archives-dialog {
+  width: min(56rem, calc(100% - 2rem));
+  max-height: min(85vh, 44rem);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--page-b);
+  color: var(--primary);
+}
+
+#archives-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+#archives-dialog .dialog-body {
+  padding: var(--space-5);
+}
+
+#archives-dialog .dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+#archives-dialog .dialog-header h3 {
+  margin: 0;
+}
+
+#archives-dialog button {
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--primary);
+  padding: var(--space-2) var(--space-3);
 }

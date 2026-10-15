@@ -1,6 +1,11 @@
 /* StudyHub - Unit 3: JavaScript Data Model, State, and Deterministic Rendering */
 
-const WORKFLOW_PATH = ["To do", "In progress", "Done"];
+/* The five workflow states, in the order work normally moves through them. */
+const WORKFLOW_PATH = ["To do", "In progress", "In review", "Done", "Archived"];
+
+/* Progress is measured over the work itself. "Archived" is filing a finished
+   task away, so it reports 100% rather than adding a fifth of extra progress. */
+const PROGRESS_PATH = WORKFLOW_PATH.filter((status) => status !== "Archived");
 
 /*
   Each status lists the moves allowed from it.
@@ -13,12 +18,19 @@ const TRANSITION_MATRIX = {
     "In progress": { actionLabel: "Start", condition: "hasTaskBasics", row: true, emphasis: true }
   },
   "In progress": {
-    Done: { actionLabel: "Mark done", condition: "hasTaskBasics", row: true, emphasis: true },
+    "In review": { actionLabel: "Submit for review", condition: "hasTaskBasics", row: true, emphasis: true },
     "To do": { actionLabel: "Move back to To do", condition: "hasTaskBasics", row: false, emphasis: false }
   },
+  "In review": {
+    Done: { actionLabel: "Mark done", condition: "hasTaskBasics", row: true, emphasis: true },
+    "In progress": { actionLabel: "Return for changes", condition: "hasTaskBasics", row: true, emphasis: false }
+  },
   Done: {
+    Archived: { actionLabel: "Archive", condition: "hasTaskBasics", row: true, emphasis: false },
     "In progress": { actionLabel: "Reopen", condition: "hasTaskBasics", row: true, emphasis: false }
-  }
+  },
+  /* Terminal state: nothing can leave Archived. */
+  Archived: {}
 };
 
 const TRANSITION_CONDITIONS = {
@@ -486,12 +498,18 @@ function getDaysRemaining(task) {
   return Math.ceil((due - today) / millisecondsPerDay);
 }
 
+/* A task is finished once it is Done or Archived. Finished tasks are never
+   pending, overdue, or upcoming. */
+function isFinished(task) {
+  return task.status === "Done" || task.status === "Archived";
+}
+
 function getIsOverdue(task) {
-  return task.status !== "Done" && getDaysRemaining(task) < 0;
+  return !isFinished(task) && getDaysRemaining(task) < 0;
 }
 
 function getDaysLabel(task) {
-  if (task.status === "Done") return "Finished";
+  if (isFinished(task)) return "Finished";
 
   const days = getDaysRemaining(task);
   const plural = (n) => `${n} day${n === 1 ? "" : "s"}`;
@@ -506,7 +524,9 @@ function getStatusClass(status) {
     {
       "To do": "status-todo",
       "In progress": "status-in-progress",
-      Done: "status-done"
+      "In review": "status-in-review",
+      Done: "status-done",
+      Archived: "status-archived"
     }[status] ?? ""
   );
 }
@@ -524,11 +544,7 @@ function normalize(value) {
 }
 
 function canEditTask(task) {
-  return task.status !== "Done";
-}
-
-function canArchiveTask(task) {
-  return task.status === "Done";
+  return !isFinished(task);
 }
 
 function showMessage(message) {
@@ -618,12 +634,14 @@ function getAvailableTransitions(task) {
 }
 
 function getWorkflowProgress(status) {
-  const stageIndex = WORKFLOW_PATH.indexOf(status);
-  const finalStageIndex = WORKFLOW_PATH.length - 1;
+  if (status === "Archived") return 100;
+
+  const stageIndex = PROGRESS_PATH.indexOf(status);
+  const finalStageIndex = PROGRESS_PATH.length - 1;
 
   if (stageIndex < 0) return null;
 
-  return (stageIndex / finalStageIndex) * 100;
+  return Math.round((stageIndex / finalStageIndex) * 100);
 }
 
 function evaluateTransition(task, nextStatus) {
@@ -718,7 +736,6 @@ function renderRecords(records) {
                   `
                 )
                 .join("")}
-              ${canArchiveTask(task) ? `<button type="button" data-action="archive" data-id="${escapeHTML(task.id)}">Archive</button>` : ""}
             </div>
           </td>
         </tr>
@@ -729,8 +746,8 @@ function renderRecords(records) {
 
 function renderSummary(records) {
   const total = records.length;
-  const completed = records.filter((task) => task.status === "Done").length;
-  const pending = records.filter((task) => task.status !== "Done");
+  const completed = records.filter(isFinished).length;
+  const pending = records.filter((task) => !isFinished(task));
 
   const priorityTask = [...pending].sort((a, b) => {
     const priorityDifference = priorityRank(b.priority) - priorityRank(a.priority);
@@ -740,7 +757,7 @@ function renderSummary(records) {
 
   const upcomingCount = records.filter((task) => {
     const days = getDaysRemaining(task);
-    return task.status !== "Done" && days >= 0 && days <= 7;
+    return !isFinished(task) && days >= 0 && days <= 7;
   }).length;
 
   const totalStudyMinutes = records.reduce(
@@ -773,9 +790,9 @@ function percentOf(part, whole) {
 
 function computeMetrics(records) {
   const total = records.length;
-  const done = records.filter((task) => task.status === "Done").length;
+  const done = records.filter(isFinished).length;
   const inProgress = records.filter((task) => task.status === "In progress").length;
-  const pending = records.filter((task) => task.status !== "Done");
+  const pending = records.filter((task) => !isFinished(task));
   const overdue = pending.filter(getIsOverdue).length;
   const pendingMinutes = pending.reduce((sum, task) => sum + task.estimatedMinutes, 0);
 
@@ -837,7 +854,7 @@ function renderMetrics(records) {
   const rows = [
     [
       "Completion rate",
-      "Done tasks ÷ all tasks × 100",
+      "Finished tasks (Done or Archived) ÷ all tasks × 100",
       m.total > 0 ? `${m.done} ÷ ${m.total} × 100 = ${m.completionRate}%` : "No tasks → 0%"
     ],
     [
@@ -862,6 +879,55 @@ function renderMetrics(records) {
       ([name, formula, result]) =>
         `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(formula)}</td><td>${escapeHTML(result)}</td></tr>`
     )
+    .join("");
+}
+
+function renderArchives() {
+  setText("#open-archives", `Archives (${state.archivedRecords.length})`);
+
+  const body = document.querySelector("#archive-table-body");
+  if (!body) return;
+
+  const archivedAt = (task) => task.workflowHistory?.at(-1)?.timestamp ?? "";
+  /* Newest first. Reversing before the (stable) sort makes ties favor the
+     task that was archived later. */
+  const rows = [...state.archivedRecords]
+    .reverse()
+    .sort((a, b) => archivedAt(b).localeCompare(archivedAt(a)));
+
+  const empty = document.querySelector("#archive-empty-state");
+  const wrapper = document.querySelector("#archive-table-wrapper");
+  if (empty) empty.hidden = rows.length > 0;
+  if (wrapper) wrapper.hidden = rows.length === 0;
+
+  body.innerHTML = rows
+    .map((task) => {
+      const history = task.workflowHistory ?? [];
+      const when = archivedAt(task);
+
+      return `
+        <tr data-id="${escapeHTML(task.id)}">
+          <td>${escapeHTML(task.id)}</td>
+          <td>${escapeHTML(task.title)}</td>
+          <td>${escapeHTML(task.subject)}</td>
+          <td>${escapeHTML(task.dueDate)}</td>
+          <td>${escapeHTML(task.priority)}</td>
+          <td class="nowrap">${when ? escapeHTML(new Date(when).toLocaleString()) : "—"}</td>
+          <td>
+            <details class="archive-history">
+              <summary>History (${history.length})</summary>
+              <ol>
+                ${history
+                  .map(
+                    (entry) => `<li>${escapeHTML(new Date(entry.timestamp).toLocaleString())}: ${escapeHTML(entry.previousStatus)} &rarr; ${escapeHTML(entry.nextStatus)} (${escapeHTML(entry.actionLabel)})</li>`
+                  )
+                  .join("")}
+              </ol>
+            </details>
+          </td>
+        </tr>
+      `;
+    })
     .join("");
 }
 
@@ -1048,13 +1114,14 @@ function renderResultCount(totalRecords) {
 function render() {
   const visibleRecords = getVisibleRecords();
 
-  renderSummary(state.records);
-  renderMetrics(state.records);
+  renderSummary(getAllTasks());
+  renderMetrics(getAllTasks());
   renderEmptyState(visibleRecords);
   renderRecords(visibleRecords);
   renderPagination(visibleRecords.length);
   renderResultCount(visibleRecords.length);
   renderDetails();
+  renderArchives();
   renderAuditLog();
   renderSchedules();
   renderNotes();
@@ -1065,8 +1132,14 @@ function render() {
    5. Record actions
    ----------------------------- */
 
+/* Active tasks plus archived ones. Archived tasks live in their own list,
+   but IDs and dashboard figures must still account for them. */
+function getAllTasks() {
+  return [...state.records, ...state.archivedRecords];
+}
+
 function generateTaskId() {
-  const numericIds = state.records
+  const numericIds = getAllTasks()
     .map((task) => Number(task.id.replace("TASK-", "")))
     .filter(Number.isFinite);
 
@@ -1078,32 +1151,6 @@ function addTask(task) {
   state.records = [...state.records, task];
   logAudit("task.create", task.id, task.title);
   state.page = 1;
-  render();
-  return true;
-}
-
-function archiveTask(id) {
-  const task = state.records.find((record) => record.id === id);
-
-  if (!task || !canArchiveTask(task)) {
-    showMessage(
-      task
-        ? "Only completed tasks can be archived."
-        : `Task "${id}" was not found.`
-    );
-    return false;
-  }
-
-  state.records = state.records.filter((record) => record.id !== id);
-  state.archivedRecords = [...state.archivedRecords, { ...task, archived: true }];
-
-  if (state.selectedRecord === id) {
-    state.selectedRecord = null;
-    state.editingRecord = null;
-  }
-
-  logAudit("task.archive", id, task.title);
-  showMessage(`${id} was archived.`);
   render();
   return true;
 }
@@ -1135,7 +1182,11 @@ function transitionTask(id, nextStatus) {
   const task = state.records.find((record) => record.id === id);
 
   if (!task) {
-    showMessage(`Task "${id}" was not found.`);
+    showMessage(
+      state.archivedRecords.some((record) => record.id === id)
+        ? "Archived tasks can't be changed."
+        : `Task "${id}" was not found.`
+    );
     return false;
   }
 
@@ -1146,16 +1197,31 @@ function transitionTask(id, nextStatus) {
     return false;
   }
 
-  state.records = state.records.map((record) =>
-    record.id === id ? result.record : record
-  );
+  const archiving = result.record.status === "Archived";
+
+  if (archiving) {
+    /* Archived is the end of the workflow: the task leaves the working list
+       and is kept, history included, in the Archives table. */
+    state.records = state.records.filter((record) => record.id !== id);
+    state.archivedRecords = [...state.archivedRecords, result.record];
+
+    if (state.selectedRecord === id) {
+      state.selectedRecord = null;
+      state.editingRecord = null;
+    }
+  } else {
+    state.records = state.records.map((record) =>
+      record.id === id ? result.record : record
+    );
+  }
+
   logAudit(
     "task.transition",
     id,
     `${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus}`
   );
   showWorkflowMessage(
-    `${id}: ${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus} (${result.historyEntry.actionLabel}).`
+    `${id}: ${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus} (${result.historyEntry.actionLabel}).${archiving ? " Moved to Archives." : ""}`
   );
   render();
   return true;
@@ -1874,10 +1940,6 @@ if (taskList) {
         transitionTask(id, actionButton.dataset.nextStatus);
       }
 
-      if (action === "archive") {
-        archiveTask(id);
-      }
-
       return;
     }
 
@@ -2070,6 +2132,39 @@ if (nav) {
 }
 
 /* -----------------------------
+   Archives modal
+   Uses the native <dialog> element: it traps keyboard focus, closes on Esc,
+   and returns focus to the button that opened it.
+   ----------------------------- */
+
+const archivesDialog = document.querySelector("#archives-dialog");
+const openArchivesButton = document.querySelector("#open-archives");
+
+if (archivesDialog && openArchivesButton) {
+  const closeArchives = () => {
+    if (typeof archivesDialog.close === "function") archivesDialog.close();
+    else archivesDialog.removeAttribute("open");
+  };
+
+  openArchivesButton.addEventListener("click", () => {
+    if (archivesDialog.hasAttribute("open")) return;
+    renderArchives();
+
+    if (typeof archivesDialog.showModal === "function") archivesDialog.showModal();
+    else archivesDialog.setAttribute("open", "");
+  });
+
+  document
+    .querySelector("#close-archives")
+    ?.addEventListener("click", closeArchives);
+
+  /* A click on the dark backdrop lands on the <dialog> itself, not on its content. */
+  archivesDialog.addEventListener("click", (event) => {
+    if (event.target === archivesDialog) closeArchives();
+  });
+}
+
+/* -----------------------------
    8. Focus-mode UI toggle
    ----------------------------- */
 
@@ -2167,9 +2262,18 @@ function runStableIdAssertions() {
 function runWorkflowTransitionAssertions() {
   const illegalCases = [
     ["To do", "Done"],
+    ["To do", "In review"],
+    ["In progress", "Done"],
+    ["In progress", "Archived"],
+    ["In review", "To do"],
+    ["In review", "Archived"],
     ["Done", "To do"],
+    ["Done", "In review"],
+    ["Archived", "Done"],
+    ["Archived", "In progress"],
     ["To do", "To do"],
     ["Done", "Done"],
+    ["Archived", "Archived"],
     ["In progress", "Blocked"],
     ["To do", "toString"],
     ["To do", "__proto__"]
@@ -2200,8 +2304,11 @@ function runWorkflowTransitionAssertions() {
 
   const legalCases = [
     ["To do", "In progress"],
-    ["In progress", "Done"],
+    ["In progress", "In review"],
     ["In progress", "To do"],
+    ["In review", "Done"],
+    ["In review", "In progress"],
+    ["Done", "Archived"],
     ["Done", "In progress"]
   ];
 
