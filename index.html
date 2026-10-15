@@ -67,6 +67,18 @@
         <li data-view="student">
           <a href="#dashboard" aria-current="page">Dashboard</a>
         </li>
+        <li data-view="teacher"><a href="#teacher-students">Students</a></li>
+        <li data-view="teacher">
+          <a href="#teacher-submissions">Submissions</a>
+        </li>
+        <li data-view="teacher">
+          <a href="#teacher-feedback">Feedback &amp; Grades</a>
+        </li>
+        <li data-view="teacher">
+          <a href="#teacher-analytics">Class Analytics</a>
+        </li>
+        <li data-view="student"><a href="#student-classroom">Classroom</a></li>
+        <li data-view="teacher"><a href="#teacher-classroom">Classroom</a></li>
         <li data-view="student"><a href="#tasks">Tasks</a></li>
         <li data-view="student"><a href="#schedules">Schedules</a></li>
         <li data-view="student"><a href="#notes">Notes</a></li>
@@ -103,9 +115,221 @@
         <div class="content-card">
           <h3>Welcome, Teacher!</h3>
           <p>Manage academic activities and monitor student progress.</p>
+          <p class="section-note">
+            Classroom activity and progress at a glance.
+          </p>
+        </div>
+        <div class="teacher-kpis">
+          <article class="metric-card" data-tone="info">
+            <h3>Students</h3>
+            <strong id="teacher-total-students">0</strong>
+          </article>
+          <article class="metric-card" data-tone="warning">
+            <h3>Active assignments</h3>
+            <strong id="teacher-active-assignments">0</strong>
+          </article>
+          <article class="metric-card" data-tone="success">
+            <h3>Submissions</h3>
+            <strong id="teacher-total-submissions">0</strong>
+          </article>
+          <article class="metric-card" data-tone="purple">
+            <h3>Pending review</h3>
+            <strong id="teacher-pending-reviews">0</strong>
+          </article>
+        </div>
+        <div class="content-card">
+          <h3>Recent submissions</h3>
+          <div id="teacher-recent-submissions"></div>
         </div>
       </section>
-
+      <section id="teacher-students" data-view="teacher" hidden>
+        <h2>Students</h2>
+        <p class="section-note">
+          Students who have joined your classrooms.
+        </p>
+        <div class="content-card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Submitted</th>
+                  <th>Reviewed</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-student-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section id="teacher-submissions" data-view="teacher" hidden>
+        <h2>Submission Review</h2>
+        <div class="content-card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Class</th>
+                  <th>Assignment</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-submission-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section id="teacher-feedback" data-view="teacher" hidden>
+        <h2>Feedback &amp; Grades</h2>
+        <div class="content-card">
+          <p class="section-note">
+            Use Review submission to provide a score and feedback.
+          </p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Class</th>
+                  <th>Assignment</th>
+                  <th>Score</th>
+                  <th>Feedback</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-feedback-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section id="teacher-analytics" data-view="teacher" hidden>
+        <h2>Class Analytics</h2>
+        <div class="teacher-kpis">
+          <article class="metric-card">
+            <h3>Submission rate</h3>
+            <strong id="teacher-submission-rate">0%</strong>
+          </article>
+          <article class="metric-card">
+            <h3>Review completion</h3>
+            <strong id="teacher-review-rate">0%</strong>
+          </article>
+          <article class="metric-card">
+            <h3>Average grade</h3>
+            <strong id="teacher-average-grade">—</strong>
+          </article>
+        </div>
+        <div class="content-card">
+          <h3>Assignment progress</h3>
+          <div id="teacher-analytics-bars" class="distribution-bars"></div>
+        </div>
+      </section>
+      <section id="teacher-classroom" data-view="teacher" hidden>
+        <div class="classroom-heading">
+          <div>
+            <h2>Classroom</h2>
+            <p class="section-note">
+              Create classes and share their codes with students.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="classroom-button classroom-primary"
+            id="class-create-toggle"
+          >
+            + Create class
+          </button>
+        </div>
+        <div
+          id="classroom-notice"
+          class="classroom-notice"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></div>
+        <form id="class-create-form" class="content-card classroom-form" hidden>
+          <div>
+            <label for="class-name">Class name</label
+            ><input
+              id="class-name"
+              name="name"
+              maxlength="100"
+              required
+              placeholder="e.g. Data Structures"
+            />
+          </div>
+          <div>
+            <label for="class-section">Section</label
+            ><input
+              id="class-section"
+              name="section"
+              maxlength="60"
+              placeholder="e.g. DCPET 2-2"
+            />
+          </div>
+          <div>
+            <label for="class-subject">Subject</label
+            ><input
+              id="class-subject"
+              name="subject"
+              maxlength="100"
+              placeholder="e.g. CMPE 201"
+            />
+          </div>
+          <button type="submit">Create class</button>
+          <button
+            type="button"
+            class="classroom-button"
+            id="class-create-cancel"
+          >
+            Cancel
+          </button>
+        </form>
+        <div id="teacher-class-cards" class="classroom-grid"></div>
+        <div id="teacher-class-detail" class="classroom-detail" hidden></div>
+      </section>
+      <section id="student-classroom" data-view="student" hidden>
+        <div class="classroom-heading">
+          <div>
+            <h2>Classroom</h2>
+            <p class="section-note">Your classes and classroom updates.</p>
+          </div>
+          <button
+            type="button"
+            class="classroom-button classroom-primary"
+            id="class-join-toggle"
+          >
+            + Join class
+          </button>
+        </div>
+        <div
+          id="student-classroom-notice"
+          class="classroom-notice"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></div>
+        <form id="class-join-form" class="content-card classroom-form" hidden>
+          <div>
+            <label for="class-join-code">Class code</label
+            ><input
+              id="class-join-code"
+              name="code"
+              required
+              maxlength="12"
+              placeholder="Enter teacher's class code"
+              autocomplete="off"
+            />
+          </div>
+          <button type="submit">Join class</button>
+          <button type="button" class="classroom-button" id="class-join-cancel">
+            Cancel
+          </button>
+        </form>
+        <div id="student-class-cards" class="classroom-grid"></div>
+        <div id="student-class-detail" class="classroom-detail" hidden></div>
+      </section>
       <section
         id="dashboard"
         data-view="student"
@@ -392,7 +616,6 @@
               </caption>
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>Task</th>
                   <th>Subject</th>
                   <th>Due</th>
@@ -446,7 +669,6 @@
                 </caption>
                 <thead>
                   <tr>
-                    <th>ID</th>
                     <th>Task</th>
                     <th>Subject</th>
                     <th>Due</th>
@@ -544,9 +766,19 @@
         </div>
 
         <div class="content-card">
-          <h3>DCPET 2-2 Class Schedule</h3>
+          <div class="schedule-card-heading">
+            <h3>DCPET 2-2 Class Schedule</h3>
+            <button
+              type="button"
+              id="schedule-actions-toggle"
+              aria-controls="schedule-table"
+              aria-pressed="false"
+            >
+              Show actions
+            </button>
+          </div>
           <div class="table-wrapper">
-            <table>
+            <table id="schedule-table" class="schedule-actions-hidden">
               <caption>
                 Weekly class schedule
               </caption>
@@ -557,7 +789,7 @@
                   <th>Class</th>
                   <th>Course code</th>
                   <th>Instructor</th>
-                  <th>Actions</th>
+                  <th class="schedule-actions-column">Actions</th>
                 </tr>
               </thead>
               <tbody id="schedule-table-body"></tbody>
@@ -729,10 +961,148 @@
         hidden
       >
         <h2 id="focus-title">Focus</h2>
-        <div class="content-card focus-panel">
-          <p>
-            Distraction-free study view is active while Focus mode is enabled.
-          </p>
+        <div class="content-card focus-panel pomodoro-panel">
+          <div class="pomo-heading">
+            <span class="pomo-eyebrow"
+              ><span class="pomo-spark"></span> STUDYHUB · DEEP WORK</span
+            >
+            <h3>Make every minute count.</h3>
+            <p>One task. One session. You've got this.</p>
+          </div>
+          <div class="pomo-modes" role="group" aria-label="Timer mode">
+            <button type="button" data-pomo-mode="focus" aria-pressed="true">
+              Focus
+            </button>
+            <button type="button" data-pomo-mode="short" aria-pressed="false">
+              Short break
+            </button>
+            <button type="button" data-pomo-mode="long" aria-pressed="false">
+              Long break
+            </button>
+          </div>
+          <div
+            class="pomo-clock"
+            id="pomo-clock"
+            role="timer"
+            aria-label="Time remaining"
+          >
+            <div class="pomo-clock-inner">
+              <span id="pomo-phase-label">FOCUS SESSION</span>
+              <strong id="pomo-time">25:00</strong>
+              <span id="pomo-timer-status">Ready when you are</span>
+            </div>
+          </div>
+          <div class="pomo-controls">
+            <button type="button" id="pomo-start" class="pomo-primary">
+              Start focusing
+            </button>
+            <button type="button" id="pomo-reset" class="pomo-secondary">
+              Reset
+            </button>
+            <button type="button" id="pomo-skip" class="pomo-secondary">
+              Skip
+            </button>
+          </div>
+          <section class="pomo-settings" aria-label="Timer preferences">
+            <button
+              type="button"
+              class="pomo-settings-toggle"
+              id="pomo-settings-toggle"
+              aria-expanded="false"
+              aria-controls="pomo-settings-form"
+            >
+              ⚙ Customize timers <span aria-hidden="true">⌄</span>
+            </button>
+            <form id="pomo-settings-form" class="pomo-settings-form" hidden>
+              <p>Choose your own study and break durations (1–180 minutes).</p>
+              <div class="pomo-settings-fields">
+                <label for="pomo-focus-duration"
+                  >Focus <span>minutes</span
+                  ><input
+                    id="pomo-focus-duration"
+                    name="focus"
+                    type="number"
+                    min="1"
+                    max="180"
+                    step="1"
+                    value="25"
+                    required
+                /></label>
+                <label for="pomo-short-duration"
+                  >Short break <span>minutes</span
+                  ><input
+                    id="pomo-short-duration"
+                    name="short"
+                    type="number"
+                    min="1"
+                    max="180"
+                    step="1"
+                    value="5"
+                    required
+                /></label>
+                <label for="pomo-long-duration"
+                  >Long break <span>minutes</span
+                  ><input
+                    id="pomo-long-duration"
+                    name="long"
+                    type="number"
+                    min="1"
+                    max="180"
+                    step="1"
+                    value="15"
+                    required
+                /></label>
+              </div>
+              <div class="pomo-settings-actions">
+                <button type="submit" class="pomo-primary">
+                  Save durations</button
+                ><button
+                  type="button"
+                  id="pomo-defaults"
+                  class="pomo-secondary"
+                >
+                  Restore defaults
+                </button>
+              </div>
+              <p class="pomo-settings-note">
+                Saving resets the current countdown. Completed sessions and your
+                study stats stay saved.
+              </p>
+            </form>
+          </section>
+          <div class="pomo-lower">
+            <label for="pomo-intention"
+              >What are you working on?
+              <input
+                id="pomo-intention"
+                type="text"
+                maxlength="100"
+                placeholder="e.g. Review circuit analysis"
+                autocomplete="off"
+              />
+            </label>
+            <div class="pomo-stats">
+              <div>
+                <strong id="pomo-sessions">0</strong
+                ><span>Focus sessions today</span>
+              </div>
+              <div>
+                <strong id="pomo-minutes">0</strong
+                ><span>Focused minutes today</span>
+              </div>
+              <div>
+                <strong id="pomo-cycle">1 / 4</strong><span>Current cycle</span>
+              </div>
+            </div>
+            <p
+              class="pomo-hint"
+              id="pomo-message"
+              role="status"
+              aria-live="polite"
+            >
+              Tip: After four focus sessions, take a longer break.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -914,50 +1284,9 @@
 
     <footer data-view="student teacher admin">Front-end prototype</footer>
 
-    <!-- Shown only when nobody is signed in. -->
-    <main id="login-view" data-view="guest" aria-labelledby="login-title">
-      <section class="content-card login-card">
-        <h1 id="login-title" class="login-brand">StudyHub</h1>
-        <p class="section-note">Sign in to continue.</p>
-        <div id="login-error" role="alert" hidden></div>
-
-        <form id="login-form" novalidate>
-          <div>
-            <label for="login-role">Sign in as</label>
-            <select id="login-role" name="role" required>
-              <option value="student">Student</option>
-              <option value="teacher">Teacher</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="login-username">Username</label>
-            <input
-              type="text"
-              id="login-username"
-              name="username"
-              autocomplete="username"
-              autocapitalize="none"
-              spellcheck="false"
-              required
-            />
-          </div>
-
-          <div>
-            <label for="login-password">Password</label>
-            <input
-              type="password"
-              id="login-password"
-              name="password"
-              autocomplete="current-password"
-              required
-            />
-          </div>
-
-          <button type="submit" id="login-submit">Sign in</button>
-        </form>
-      </section>
-    </main>
+    <script src="auth.js" defer></script>
     <script src="app.js" defer></script>
+    <script src="classroom.js" defer></script>
+    <script src="pomodoro.js" defer></script>
   </body>
 </html>

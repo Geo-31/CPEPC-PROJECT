@@ -73,97 +73,39 @@ const TRANSITION_CONDITIONS = {
     Boolean(
       String(task.title ?? "").trim() &&
       String(task.subject ?? "").trim() &&
-      task.dueDate,
+      (task.dueDate || task.classroomAssignmentId),
     ),
 };
 
 /* -----------------------------
    0. Authentication + role-based views (RBAC)
-
-   Front-end prototype only: this controls what each role SEES. Anyone can
-   open DevTools and bypass it, so real access control must be enforced by a
-   server. Passwords are stored as SHA-256 hashes of "studyhub:<user>:<pass>",
-   never as plain text, but that is still not production-grade.
    ----------------------------- */
 
-/* A role maps to a "view". Any role without its own view sees the student view. */
-const ROLES = {
-  admin: { label: "Administrator", view: "admin" },
-  student: { label: "Student", view: "student" },
-  teacher: { label: "Teacher", view: "teacher" },
+const AUTH = window.StudyHubAuth;
+const ROLES = AUTH.ROLES;
+let currentUser = null;
+
+try {
+  currentUser = AUTH.getSessionUser();
+} catch (error) {
+  const message = document.querySelector("#app-message");
+  if (message) {
+    message.textContent = error.message;
+    message.hidden = false;
+  }
+}
+
+const currentView = currentUser
+  ? (ROLES[currentUser.role]?.view ?? "student")
+  : "guest";
+const session = {
+  userId: currentUser?.id ?? null,
+  displayName: currentUser?.displayName ?? "Guest",
+  role: currentUser?.role ?? null,
 };
 
-const USERS = [
-  {
-    id: "admin-001",
-    username: "admin",
-    displayName: "Admin",
-    role: "admin",
-    passwordHash:
-      "9f75113838510c02f916ffc95d7b903078d74c35d9912ec30c2a4866cbcc0d83",
-  },
-  {
-    id: "student-001",
-    username: "student",
-    displayName: "Student",
-    role: "student",
-    passwordHash:
-      "652cb50427667500e55bade9c407dd0f648e4b80c423bb5a4c18231c5e88a636",
-  },
-  {
-    id: "teacher-001",
-    username: "teacher",
-    displayName: "Teacher",
-    role: "teacher",
-    passwordHash:
-      "c35bf2952e5a35a88721cf03349803358d2b7d84ba5def8a0b8d2f1567c2464a",
-  },
-];
-
-const SESSION_KEY = "studyhub-session";
-const MAX_FAILED_LOGINS = 5;
-const LOCKOUT_MS = 30000;
-
-/* Filled in from the signed-in user; logAudit() reads displayName. */
-const session = { userId: null, displayName: "Guest", role: null };
-
-function readSessionUserId() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw).userId : null;
-  } catch {
-    return null;
-  }
-}
-
-function clearSession() {
-  try {
-    sessionStorage.removeItem(SESSION_KEY);
-  } catch {
-    /* nothing to clear */
-  }
-}
-
-/* The role is always looked up from USERS, never trusted from storage. */
-function getSessionUser() {
-  const id = readSessionUserId();
-  return USERS.find((user) => user.id === id) ?? null;
-}
-
-function viewForUser(user) {
-  if (!user) return "guest";
-  return ROLES[user.role]?.view ?? "student";
-}
-
-const currentUser = getSessionUser();
-const currentView = viewForUser(currentUser);
-
-if (currentUser) {
-  session.userId = currentUser.id;
-  session.displayName = currentUser.displayName;
-  session.role = currentUser.role;
-} else {
-  clearSession(); /* drops a stale or tampered session */
+if (!currentUser) {
+  window.location.replace("login.html");
 }
 
 /* Remove everything the current view should not have, then reveal the page. */
@@ -177,7 +119,6 @@ function applyRoleView() {
   const root = document.documentElement;
   root.dataset.appView = currentView;
   if (currentUser) root.dataset.role = currentUser.role;
-  document.body.classList.toggle("logged-out", !currentUser);
 
   if (currentUser) {
     setLabel("#user-label", currentUser.displayName);
@@ -209,103 +150,21 @@ function setLabel(selector, text) {
   if (element) element.textContent = text;
 }
 
-async function sha256Hex(text) {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-/* Resolves to the matching user, or null. Hashes even for unknown names. */
-async function authenticate(username, password) {
-  const name = username.trim().toLowerCase();
-  const user = USERS.find((entry) => entry.username === name);
-  const hash = await sha256Hex(`studyhub:${name}:${password}`);
-  return user && user.passwordHash === hash ? user : null;
-}
-
-function showLoginError(message) {
-  const box = document.querySelector("#login-error");
-  if (!box) return;
-  box.textContent = message;
-  box.hidden = !message;
-}
-
-let failedLogins = 0;
-let lockedUntil = 0;
-
-const loginForm = document.querySelector("#login-form");
-
-if (loginForm) {
-  loginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const remainingMs = lockedUntil - Date.now();
-    if (remainingMs > 0) {
-      showLoginError(
-        `Too many attempts. Try again in ${Math.ceil(remainingMs / 1000)} seconds.`,
-      );
-      return;
-    }
-
-    const data = new FormData(loginForm);
-    const username = String(data.get("username") ?? "");
-    const password = String(data.get("password") ?? "");
-    const selectedRole = String(data.get("role") ?? "student");
-
-    if (!username.trim() || !password) {
-      showLoginError("Enter your username and password.");
-      return;
-    }
-
-    let user;
-    try {
-      user = await authenticate(username, password);
-    } catch {
-      showLoginError("Sign-in needs a secure page (https or localhost).");
-      return;
-    }
-
-    if (user && user.role !== "admin" && user.role !== selectedRole) {
-      showLoginError("The selected role does not match this account.");
-      loginForm.elements.password.value = "";
-      return;
-    }
-
-    if (!user) {
-      failedLogins += 1;
-      loginForm.elements.password.value = "";
-
-      if (failedLogins >= MAX_FAILED_LOGINS) {
-        failedLogins = 0;
-        lockedUntil = Date.now() + LOCKOUT_MS;
-        showLoginError("Too many attempts. Try again in 30 seconds.");
-      } else {
-        showLoginError("Incorrect username or password.");
-      }
-      return;
-    }
-
-    try {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }));
-    } catch {
-      showLoginError(
-        "Your browser is blocking storage, so sign-in can't be kept.",
-      );
-      return;
-    }
-
-    window.location.reload(); /* boots cleanly into the right view */
-  });
-}
-
 const logoutButton = document.querySelector("#logout-btn");
 
 if (logoutButton) {
   logoutButton.addEventListener("click", () => {
-    clearSession();
-    window.location.reload();
+    try {
+      AUTH.clearSession();
+    } catch (error) {
+      const message = document.querySelector("#app-message");
+      if (message) {
+        message.textContent = error.message;
+        message.hidden = false;
+      }
+      return;
+    }
+    window.location.href = "login.html";
   });
 }
 
@@ -714,7 +573,9 @@ function parseDateOnly(dateString) {
 }
 
 function getDaysRemaining(task) {
+  if (!task.dueDate) return Infinity;
   const due = parseDateOnly(task.dueDate);
+  if (!Number.isFinite(due.getTime())) return Infinity;
   const today = startOfToday();
   const millisecondsPerDay = 1000 * 60 * 60 * 24;
   return Math.ceil((due - today) / millisecondsPerDay);
@@ -736,6 +597,7 @@ function getDaysLabel(task) {
   const days = getDaysRemaining(task);
   const plural = (n) => `${n} day${n === 1 ? "" : "s"}`;
 
+  if (days === Infinity) return "No due date";
   if (days < 0) return `${plural(Math.abs(days))} overdue`;
   if (days === 0) return "Due today";
   return `${plural(days)} left`;
@@ -768,7 +630,7 @@ function normalize(value) {
 }
 
 function canEditTask(task) {
-  return !isFinished(task);
+  return !isFinished(task) && !task.classroomAssignmentId;
 }
 
 function showMessage(message) {
@@ -938,7 +800,6 @@ function renderRecords(records) {
 
       return `
         <tr data-id="${task.id}">
-          <td>${escapeHTML(task.id)}</td>
           <td>${escapeHTML(task.title)}</td>
           <td>${escapeHTML(task.subject)}</td>
           <td>${escapeHTML(task.dueDate)}</td>
@@ -1169,7 +1030,6 @@ function renderArchives() {
 
       return `
         <tr data-id="${escapeHTML(task.id)}">
-          <td>${escapeHTML(task.id)}</td>
           <td>${escapeHTML(task.title)}</td>
           <td>${escapeHTML(task.subject)}</td>
           <td>${escapeHTML(task.dueDate)}</td>
@@ -1663,7 +1523,7 @@ function renderSchedules() {
   if (!body) return;
 
   const actions = (item) => `
-    <td>
+    <td class="schedule-actions-column">
       <div class="task-actions">
         <button type="button" data-schedule-action="edit" data-id="${escapeHTML(item.id)}">Edit</button>
         <button type="button" class="btn-danger" data-schedule-action="delete" data-id="${escapeHTML(item.id)}">Delete</button>
@@ -1746,6 +1606,17 @@ if (scheduleCancel) {
 }
 
 const scheduleBody = document.querySelector("#schedule-table-body");
+
+const scheduleActionsToggle = document.querySelector("#schedule-actions-toggle");
+const scheduleTable = document.querySelector("#schedule-table");
+
+if (scheduleActionsToggle && scheduleTable) {
+  scheduleActionsToggle.addEventListener("click", () => {
+    const showActions = scheduleTable.classList.toggle("schedule-actions-hidden") === false;
+    scheduleActionsToggle.setAttribute("aria-pressed", String(showActions));
+    scheduleActionsToggle.textContent = showActions ? "Hide actions" : "Show actions";
+  });
+}
 
 if (scheduleBody) {
   scheduleBody.addEventListener("click", (event) => {
@@ -2708,3 +2579,435 @@ if (themeOptions.length) {
 render();
 runStableIdAssertions();
 runWorkflowTransitionAssertions();
+
+const CLASSROOMS_KEY = "studyhub-classes-v1";
+const LEGACY_CLASSROOM_KEY = "studyhub-classroom-v1";
+
+function syncClassroomAssignments() {
+  if (currentView !== "student" || !session.userId) return false;
+
+  let classes;
+  try {
+    const raw = localStorage.getItem(CLASSROOMS_KEY);
+    classes = raw === null ? [] : JSON.parse(raw);
+    if (!Array.isArray(classes)) {
+      throw new Error("Saved classrooms must be a list.");
+    }
+  } catch (error) {
+    console.error("Unable to load classroom assignments into Tasks.", error);
+    showMessage("Classroom assignments could not be loaded into Tasks.");
+    return false;
+  }
+
+  const priorAssignedTasks = getAllTasks().filter(
+    (task) => task.classroomAssignmentId,
+  );
+  const priorByAssignment = new Map(
+    priorAssignedTasks.map((task) => [task.classroomAssignmentId, task]),
+  );
+  const archivedAssignments = new Set(
+    state.archivedRecords
+      .filter((task) => task.classroomAssignmentId)
+      .map((task) => task.classroomAssignmentId),
+  );
+  const assignedTasks = [];
+
+  for (const item of classes) {
+    if (
+      !item ||
+      !Array.isArray(item.studentIds) ||
+      !item.studentIds.includes(session.userId) ||
+      !Array.isArray(item.posts)
+    ) {
+      continue;
+    }
+
+    for (const post of item.posts) {
+      if (
+        !post ||
+        post.type !== "Assignment" ||
+        typeof post.id !== "string" ||
+        !post.id ||
+        typeof post.title !== "string"
+      ) {
+        continue;
+      }
+
+      const assignmentId = `${item.id}:${post.id}`;
+      const previous = priorByAssignment.get(assignmentId);
+      assignedTasks.push({
+        id: previous?.id ?? `CLASS-${item.id}-${post.id}`,
+        title: post.title,
+        subject: item.subject || item.name || "Classroom assignment",
+        description: post.body || "",
+        dueDate: post.dueDate || "",
+        priority: previous?.priority ?? "Medium",
+        status: previous?.status ?? "To do",
+        createdAt: post.createdAt || new Date().toISOString(),
+        estimatedMinutes: previous?.estimatedMinutes ?? 30,
+        workflowHistory: previous?.workflowHistory ?? [],
+        classroomAssignmentId: assignmentId,
+        classroomId: item.id,
+        classroomName: item.name || "",
+        teacherName: item.teacherName || "",
+      });
+    }
+  }
+
+  const currentAssignmentIds = new Set(
+    assignedTasks.map((task) => task.classroomAssignmentId),
+  );
+  state.records = [
+    ...state.records.filter((task) => !task.classroomAssignmentId),
+    ...assignedTasks.filter(
+      (task) => !archivedAssignments.has(task.classroomAssignmentId),
+    ),
+  ];
+  state.archivedRecords = [
+    ...state.archivedRecords.filter(
+      (task) =>
+        !task.classroomAssignmentId ||
+        currentAssignmentIds.has(task.classroomAssignmentId),
+    ),
+    ...assignedTasks.filter((task) =>
+      archivedAssignments.has(task.classroomAssignmentId),
+    ),
+  ];
+  return true;
+}
+
+function readClassrooms() {
+  try {
+    const saved = localStorage.getItem(CLASSROOMS_KEY);
+    if (saved === null) return [];
+    const classes = JSON.parse(saved);
+    if (!Array.isArray(classes)) {
+      throw new Error("Saved classrooms must be a list.");
+    }
+    return classes;
+  } catch (error) {
+    console.error("Unable to load classroom data for teacher views.", error);
+    showMessage("Classroom data could not be loaded.");
+    return [];
+  }
+}
+
+function getTeacherStudentNames() {
+  try {
+    const users = JSON.parse(localStorage.getItem("studyhub-users") || "[]");
+    return new Map(
+      users
+        .filter((user) => user && typeof user.id === "string")
+        .map((user) => [user.id, user.displayName || user.name || "Student"]),
+    );
+  } catch (error) {
+    console.error("Unable to load classroom student names.", error);
+    return new Map();
+  }
+}
+
+function classroomStudentName(id, names) {
+  return (
+    names.get(id) ||
+    (id === "student-001" ? "Student" : `Student (${id.slice(0, 8)})`)
+  );
+}
+
+function clearLegacyTeacherSamples() {
+  try {
+    const raw = localStorage.getItem(LEGACY_CLASSROOM_KEY);
+    if (raw === null) return;
+    const saved = JSON.parse(raw);
+    if (
+      !saved ||
+      !Array.isArray(saved.students) ||
+      !Array.isArray(saved.assignments) ||
+      !Array.isArray(saved.submissions)
+    ) {
+      return;
+    }
+
+    const cleaned = {
+      ...saved,
+      students: saved.students.filter(
+        (student) =>
+          !(
+            (student?.id === "STU-001" && student.name === "Student") ||
+            (student?.id === "STU-002" && student.name === "Student 002") ||
+            (student?.id === "STU-003" && student.name === "Student 003")
+          ),
+      ),
+      assignments: saved.assignments.filter(
+        (assignment) =>
+          !(
+            assignment?.id === "ASG-001" &&
+            assignment.title === "Circuit Analysis Practice" &&
+            assignment.subject === "Fundamentals of Electrical Circuits"
+          ),
+      ),
+      submissions: saved.submissions.filter(
+        (submission) =>
+          !(
+            submission?.id === "SUB-001" &&
+            submission.assignmentId === "ASG-001" &&
+            submission.studentId === "STU-002" &&
+            submission.response ===
+              "Sample demonstration response for circuit analysis practice."
+          ),
+      ),
+    };
+    if (
+      cleaned.students.length !== saved.students.length ||
+      cleaned.assignments.length !== saved.assignments.length ||
+      cleaned.submissions.length !== saved.submissions.length
+    ) {
+      localStorage.setItem(LEGACY_CLASSROOM_KEY, JSON.stringify(cleaned));
+    }
+  } catch (error) {
+    console.error("Unable to clear built-in teacher sample data.", error);
+    showMessage("Built-in teacher sample data could not be cleared.");
+  }
+}
+
+function renderClassroom() {
+  const classes = readClassrooms().filter(
+    (classroom) => classroom?.teacherId === session.userId,
+  );
+  const studentNames = getTeacherStudentNames();
+  const students = new Map();
+  const assignments = [];
+  const submissions = [];
+
+  for (const classroom of classes) {
+    const studentIds = Array.isArray(classroom.studentIds)
+      ? [
+          ...new Set(
+            classroom.studentIds.filter((id) => typeof id === "string"),
+          ),
+        ]
+      : [];
+    const posts = Array.isArray(classroom.posts) ? classroom.posts : [];
+    const classSubmissions = Array.isArray(classroom.submissions)
+      ? classroom.submissions
+      : [];
+
+    for (const studentId of studentIds) {
+      if (!students.has(studentId)) {
+        students.set(studentId, {
+          id: studentId,
+          name: classroomStudentName(studentId, studentNames),
+          submitted: 0,
+          reviewed: 0,
+        });
+      }
+    }
+
+    for (const post of posts) {
+      if (
+        !post ||
+        post.type !== "Assignment" ||
+        typeof post.id !== "string" ||
+        typeof post.title !== "string"
+      ) {
+        continue;
+      }
+
+      const assignment = {
+        classId: classroom.id,
+        className: classroom.name || "Classroom",
+        postId: post.id,
+        title: post.title,
+        studentCount: studentIds.length,
+        submissions: [],
+      };
+
+      for (const submission of classSubmissions) {
+        if (
+          !submission ||
+          submission.postId !== post.id ||
+          typeof submission.studentId !== "string" ||
+          !studentIds.includes(submission.studentId)
+        ) {
+          continue;
+        }
+
+        const hasScore =
+          submission.score !== null &&
+          submission.score !== undefined &&
+          submission.score !== "" &&
+          Number.isFinite(Number(submission.score));
+        const student = students.get(submission.studentId);
+        const normalized = {
+          ...submission,
+          classId: classroom.id,
+          className: assignment.className,
+          assignmentId: post.id,
+          assignmentTitle: post.title,
+          studentName:
+            student?.name ||
+            classroomStudentName(submission.studentId, studentNames),
+          reviewed: hasScore,
+        };
+        assignment.submissions.push(normalized);
+        submissions.push(normalized);
+        if (student) {
+          student.submitted += 1;
+          if (hasScore) student.reviewed += 1;
+        }
+      }
+
+      assignments.push(assignment);
+    }
+  }
+
+  const reviewed = submissions.filter((submission) => submission.reviewed);
+  const studentList = [...students.values()];
+  setText("#teacher-total-students", studentList.length);
+  setText("#teacher-active-assignments", assignments.length);
+  setText("#teacher-total-submissions", submissions.length);
+  setText("#teacher-pending-reviews", submissions.length - reviewed.length);
+  const recent = document.querySelector("#teacher-recent-submissions");
+  if (recent)
+    recent.innerHTML = submissions.length
+      ? [...submissions]
+          .sort(
+            (a, b) =>
+              (Date.parse(b.submittedAt) || 0) -
+              (Date.parse(a.submittedAt) || 0),
+          )
+          .slice(0, 5)
+          .map(
+            (submission) =>
+              `<div class="teacher-list-item"><strong>${escapeHTML(submission.studentName)}</strong><p>${escapeHTML(submission.assignmentTitle)} · ${escapeHTML(submission.className)} · ${submission.reviewed ? "Reviewed" : "Pending review"}</p></div>`,
+          )
+          .join("")
+      : "<p>No submissions yet.</p>";
+  const sr = document.querySelector("#teacher-student-rows");
+  if (sr)
+    sr.innerHTML =
+      studentList
+        .map(
+          (student) =>
+            `<tr><td>${escapeHTML(student.name)}</td><td>${student.submitted}</td><td>${student.reviewed}</td></tr>`,
+        )
+        .join("") || '<tr><td colspan="3">No students have joined your classrooms yet.</td></tr>';
+  const subr = document.querySelector("#teacher-submission-rows");
+  if (subr)
+    subr.innerHTML =
+      submissions
+        .slice()
+        .sort(
+          (a, b) =>
+            (Date.parse(b.submittedAt) || 0) -
+            (Date.parse(a.submittedAt) || 0),
+        )
+        .map((submission) => {
+          const submittedAt = Date.parse(submission.submittedAt);
+          const submittedLabel = Number.isNaN(submittedAt)
+            ? "Unknown date"
+            : new Date(submittedAt).toLocaleString();
+          return `<tr><td>${escapeHTML(submission.studentName)}</td><td>${escapeHTML(submission.className)}</td><td>${escapeHTML(submission.assignmentTitle)}</td><td>${escapeHTML(submittedLabel)}</td><td>${submission.reviewed ? "Reviewed" : "Pending review"}</td><td><details><summary>${submission.reviewed ? "View grade" : "Review submission"}</summary><p>${escapeHTML(submission.response)}</p><form class="teacher-grade-form" data-class-submission-id="${escapeHTML(submission.id)}" data-class-id="${escapeHTML(submission.classId)}"><div><label>Score (0–100)</label><input type="number" name="score" min="0" max="100" required value="${submission.reviewed ? escapeHTML(submission.score) : ""}"></div><div><label>Feedback</label><textarea name="feedback" rows="2" maxlength="1000">${escapeHTML(submission.feedback || "")}</textarea></div><button type="submit">Save review</button></form></details></td></tr>`;
+        })
+        .join("") || '<tr><td colspan="6">No submissions yet.</td></tr>';
+  const fr = document.querySelector("#teacher-feedback-rows");
+  if (fr)
+    fr.innerHTML =
+      reviewed
+        .map(
+          (submission) =>
+            `<tr><td>${escapeHTML(submission.studentName)}</td><td>${escapeHTML(submission.className)}</td><td>${escapeHTML(submission.assignmentTitle)}</td><td>${escapeHTML(submission.score)}/100</td><td>${escapeHTML(submission.feedback || "—")}</td></tr>`,
+        )
+        .join("") ||
+      '<tr><td colspan="5">No reviewed submissions yet.</td></tr>';
+  const possible = assignments.reduce(
+    (total, assignment) => total + assignment.studentCount,
+    0,
+  );
+  setText(
+    "#teacher-submission-rate",
+    `${possible ? Math.min(100, Math.round((submissions.length / possible) * 100)) : 0}%`,
+  );
+  setText(
+    "#teacher-review-rate",
+    `${submissions.length ? Math.round((reviewed.length / submissions.length) * 100) : 0}%`,
+  );
+  setText(
+    "#teacher-average-grade",
+    reviewed.length
+      ? `${Math.round(reviewed.reduce((sum, s) => sum + Number(s.score), 0) / reviewed.length)}/100`
+      : "—",
+  );
+  const bars = document.querySelector("#teacher-analytics-bars");
+  if (bars)
+    bars.innerHTML =
+      assignments
+        .map((assignment) => {
+          const count = assignment.submissions.length;
+          const pct = assignment.studentCount
+            ? Math.min(
+                100,
+                Math.round((count / assignment.studentCount) * 100),
+              )
+            : 0;
+          return `<div class="bar-row"><span class="bar-label">${escapeHTML(assignment.title)} · ${escapeHTML(assignment.className)}</span><div class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></div><span class="bar-count">${count}/${assignment.studentCount}</span></div>`;
+        })
+        .join("") || "<p>No assignments yet.</p>";
+}
+
+document.querySelector("#app")?.addEventListener("submit", (e) => {
+  const form = e.target;
+  if (
+    form.matches("[data-class-submission-id]") &&
+    currentView === "teacher"
+  ) {
+    e.preventDefault();
+    const data = new FormData(form);
+    const score = Number(data.get("score"));
+    if (!Number.isFinite(score) || score < 0 || score > 100) {
+      showMessage("Enter a score from 0 to 100.");
+      return;
+    }
+
+    try {
+      const classes = readClassrooms();
+      const classroom = classes.find(
+        (item) =>
+          item?.id === form.dataset.classId &&
+          item.teacherId === session.userId,
+      );
+      const submission = classroom?.submissions?.find(
+        (item) => item.id === form.dataset.classSubmissionId,
+      );
+      if (!classroom || !submission) {
+        showMessage("That classroom submission could not be found.");
+        return;
+      }
+
+      submission.score = score;
+      submission.feedback = String(data.get("feedback") || "").trim();
+      localStorage.setItem(CLASSROOMS_KEY, JSON.stringify(classes));
+    } catch (error) {
+      console.error("Unable to save classroom submission review.", error);
+      showMessage("The submission review could not be saved.");
+      return;
+    }
+
+    window.dispatchEvent(new Event("studyhub:classrooms-updated"));
+    showMessage("Submission reviewed and graded.");
+  }
+});
+window.addEventListener("storage", (e) => {
+  if (e.key === CLASSROOMS_KEY) {
+    if (currentView === "teacher") renderClassroom();
+    if (syncClassroomAssignments()) render();
+  }
+});
+window.addEventListener("studyhub:classrooms-updated", () => {
+  if (currentView === "teacher") {
+    renderClassroom();
+  }
+  if (syncClassroomAssignments()) render();
+});
+if (syncClassroomAssignments()) render();
+clearLegacyTeacherSamples();
+renderClassroom();

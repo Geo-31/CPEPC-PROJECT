@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0f0d" />
+    <title>Log in | StudyHub</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="auth.css" />
+    <script src="auth.js" defer></script>
+  </head>
+  <body>
+    <main class="auth-layout">
+      <section class="auth-content" aria-labelledby="login-title">
+        <a class="brand" href="login.html" aria-label="StudyHub home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          StudyHub
+        </a>
+
+        <div class="auth-form-wrap">
+          <header class="auth-heading">
+            <h1 id="login-title">Welcome back</h1>
+            <p>Sign in to pick up where you left off.</p>
+          </header>
+
+          <nav class="account-tabs" aria-label="Account">
+            <a href="login.html" aria-current="page">Log in</a>
+            <a href="signup.html">Sign up</a>
+          </nav>
+
+          <div id="auth-error" class="auth-message" role="alert" hidden></div>
+
+          <form id="login-form" class="auth-form">
+            <div class="field">
+              <label for="login-role">Sign in as</label>
+              <select id="login-role" name="role" required>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="login-username">Email or username</label>
+              <input
+                id="login-username"
+                name="username"
+                type="text"
+                placeholder="Your email or username"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label for="login-password">Password</label>
+              <div class="password-field">
+                <input
+                  id="login-password"
+                  name="password"
+                  type="password"
+                  placeholder="Your password"
+                  autocomplete="current-password"
+                  required
+                />
+                <button
+                  class="password-toggle"
+                  type="button"
+                  data-password-toggle="#login-password"
+                  aria-label="Show password"
+                >
+                  Show
+                </button>
+              </div>
+            </div>
+
+            <button class="button button-primary" type="submit">Sign in</button>
+          </form>
+
+          <p class="auth-footer">
+            New to StudyHub? <a href="signup.html">Create an account</a>
+          </p>
+        </div>
+      </section>
+
+      <aside class="visual-panel" aria-label="StudyHub study planner preview">
+        <p class="visual-headline">Plan.<br />Focus.<br /><span>Finish.</span></p>
+
+        <div class="preview-task">
+          <strong>Data Structures Quiz Review</strong>
+          <div class="preview-task-meta">
+            <span>Data Structures · due Oct 30</span>
+            <span class="status-pill">In progress</span>
+          </div>
+        </div>
+
+        <div class="preview-widgets">
+          <div class="preview-card completion-card">
+            <div class="completion-ring"><span>27%</span></div>
+            <span>Completion</span>
+          </div>
+          <div class="preview-card calendar-card">
+            <span class="calendar-month">October 2026</span>
+            <div class="calendar-grid" aria-hidden="true">
+              <span>S</span><span>M</span><span>T</span><span>W</span>
+              <span>T</span><span>F</span><span>S</span>
+              <span></span><span></span><b>1</b><b>2</b><b>3</b>
+              <b>4</b><b>5</b><b>6</b><b>7</b><b>8</b><b>9</b><b>10</b>
+              <b>11</b><b>12</b><b>13</b><b>14</b><b>15</b><b>16</b><b>17</b>
+              <b>18</b><b>19</b><b>20</b><b>21</b><b>22</b><b>23</b><b>24</b>
+              <b>25</b><b>26</b><b>27</b><b>28</b><b>29</b><b>30</b><b>31</b>
+            </div>
+          </div>
+        </div>
+        <p class="visual-caption">Your semester, organized in one place.</p>
+      </aside>
+    </main>
+  </body>
+</html>

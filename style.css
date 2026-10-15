@@ -788,6 +788,65 @@ body.focus-mode .focus-panel {
   color-scheme: dark;
 }
 
+.schedule-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.schedule-card-heading h3 {
+  margin: 0;
+}
+
+#schedule-actions-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid rgba(79, 214, 168, 0.32);
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 214, 168, 0.14),
+    rgba(79, 214, 168, 0.04)
+  );
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+#schedule-actions-toggle::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px rgba(79, 214, 168, 0.12);
+}
+
+#schedule-actions-toggle:hover {
+  transform: translateY(-1px);
+  border-color: var(--brand);
+  background: rgba(79, 214, 168, 0.18);
+}
+
+#schedule-actions-toggle[aria-pressed="true"] {
+  background: var(--brand);
+  color: var(--page-a);
+}
+
+.schedule-actions-hidden .schedule-actions-column {
+  display: none;
+}
+
 #schedule-cancel,
 #schedule-table-body button {
   font-family: inherit;
@@ -815,6 +874,13 @@ body.focus-mode .focus-panel {
   color: var(--primary);
   font-size: 0.85rem;
   text-transform: none;
+}
+
+@media (max-width: 480px) {
+  .schedule-card-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 /* ==========================================
@@ -993,52 +1059,12 @@ tfoot td {
 }
 
 /* ==========================================
-   LOGIN + USER MENU
+   USER MENU
    ========================================== */
 
 /* Hide the page until app.js has applied the role view (no flash of the wrong UI). */
 html:not([data-ready]) body > :not(script) {
   visibility: hidden;
-}
-
-body.logged-out {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
-
-#login-view {
-  width: min(100%, 420px);
-}
-
-.login-card {
-  margin-bottom: 0;
-  padding: var(--space-5);
-}
-
-.login-brand {
-  font-size: var(--heading-size);
-  margin-bottom: var(--space-1);
-}
-
-#login-error {
-  margin-top: var(--space-3);
-  margin-bottom: 0;
-}
-
-#login-form {
-  flex-direction: column;
-  margin: var(--space-4) 0 0;
-}
-
-#login-form > div,
-#login-form input {
-  width: 100%;
-}
-
-#login-form button[type="submit"] {
-  padding: var(--space-3);
 }
 
 .user-menu {
@@ -1582,8 +1608,7 @@ body.logged-out {
 /* ---- Cards ---- */
 :root[data-theme="light"] .content-card,
 :root[data-theme="light"] #dashboard > section,
-:root[data-theme="light"] #task-form,
-:root[data-theme="light"] .login-card {
+:root[data-theme="light"] #task-form {
   background: var(--raisedcard);
   box-shadow: var(--shadow-card);
 }
@@ -1706,4 +1731,537 @@ body.logged-out {
 }
 #dashboard > #dash-focus {
   border-left: 3px solid var(--focus);
+}
+
+.teacher-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.teacher-kpis .metric-card {
+  padding: 1.2rem;
+}
+.teacher-kpis h3 {
+  font-size: 0.85rem;
+  color: var(--secondary);
+  margin-bottom: 0.6rem;
+}
+.teacher-kpis strong {
+  font-size: 2rem;
+}
+#teacher-dashboard .content-card,
+#teacher-students .content-card,
+#teacher-submissions .content-card,
+#teacher-feedback .content-card,
+#teacher-analytics .content-card {
+  margin-bottom: 1rem;
+}
+#teacher-students button,
+#teacher-submissions button {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.8rem;
+  background: var(--raisedcard);
+  color: var(--primary);
+  margin: 0.15rem;
+}
+#teacher-students button[type="submit"][type="submit"] {
+  background: var(--brand);
+  color: var(--page-a);
+}
+.teacher-list-item {
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.teacher-list-item:last-child {
+  border-bottom: 0;
+}
+.teacher-list-item p {
+  margin: 0.35rem 0;
+  color: var(--secondary);
+}
+.teacher-status {
+  font-size: 0.8rem;
+  color: var(--brand);
+}
+.teacher-grade-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+  margin: 0;
+}
+.teacher-grade-form input[type="number"] {
+  width: 90px;
+}
+.teacher-grade-form textarea {
+  min-width: 220px;
+  flex: 1;
+}
+.teacher-grade-form label {
+  margin-bottom: 0.3rem;
+}
+#teacher-analytics-bars .bar-track {
+  min-width: 100px;
+}
+@media (max-width: 768px) {
+  .teacher-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Classroom module: scoped styles, existing Student dashboard is unchanged. */
+.classroom-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.classroom-heading h2 {
+  margin-bottom: 3px;
+}
+.classroom-button,
+.classroom-detail button,
+.classroom-grid button {
+  font: inherit;
+  padding: 9px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--raisedcard);
+  color: var(--primary);
+  cursor: pointer;
+}
+.classroom-primary {
+  background: var(--brand) !important;
+  color: #0a0f0d !important;
+  border-color: var(--brand) !important;
+  font-weight: 700;
+}
+.classroom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.classroom-tile {
+  border: 1px solid var(--border);
+  background: var(--raisedcard);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.classroom-tile-head {
+  padding: 20px;
+  background: linear-gradient(120deg, #164f40, #0c2b23);
+  min-height: 122px;
+}
+.classroom-tile h3 {
+  margin: 0 0 6px;
+  font-size: 1.13rem;
+}
+.classroom-tile p {
+  color: var(--secondary);
+  font-size: 0.88rem;
+  margin: 5px 0;
+}
+.classroom-tile-body {
+  padding: 15px;
+}
+.classroom-tile-body button {
+  width: 100%;
+}
+.classroom-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+.classroom-form > div {
+  flex: 1 1 190px;
+}
+.classroom-form input,
+.classroom-form textarea,
+.classroom-form select {
+  width: 100%;
+  min-width: 0;
+}
+.classroom-notice {
+  padding: 12px 14px;
+  border: 1px solid var(--brand);
+  background: var(--brand-dim);
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+.classroom-detail {
+  display: grid;
+  gap: 16px;
+}
+.classroom-banner {
+  padding: 23px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #145541, #102e2a);
+  border: 1px solid var(--border);
+}
+.classroom-banner h3 {
+  font-size: 1.45rem;
+  margin: 8px 0;
+}
+.classroom-banner p {
+  color: var(--secondary);
+}
+.classroom-banner .classroom-code {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px dashed var(--brand);
+  border-radius: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.classroom-post {
+  border: 1px solid var(--border);
+  background: var(--raisedcard);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.classroom-post h4 {
+  margin: 0 0 7px;
+}
+.classroom-post p {
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.classroom-post small {
+  color: var(--secondary);
+}
+.classroom-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.classroom-empty {
+  padding: 28px 15px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--secondary);
+  text-align: center;
+  grid-column: 1/-1;
+}
+.classroom-detail .content-card {
+  margin-bottom: 0;
+}
+.classroom-detail textarea {
+  width: 100%;
+  min-height: 84px;
+}
+@media (max-width: 600px) {
+  .classroom-grid {
+    grid-template-columns: 1fr;
+  }
+  .classroom-heading {
+    align-items: flex-start;
+  }
+}
+
+/* Pomodoro focus workspace — inherits StudyHub theme variables */
+body.focus-mode #app {
+  width: min(100%, 920px);
+  display: block;
+  padding-top: clamp(20px, 4vh, 48px);
+}
+body.focus-mode .focus-panel {
+  min-height: 0;
+  display: flex;
+}
+.pomodoro-panel {
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+  padding: clamp(22px, 4vw, 48px);
+  text-align: center;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(79, 214, 168, 0.12),
+      transparent 62%
+    ),
+    var(--card);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+}
+.pomo-heading h3 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: 10px 0 8px;
+}
+.pomo-heading p {
+  color: var(--secondary);
+  font-size: 0.9rem;
+}
+.pomo-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+  color: var(--brand);
+}
+.pomo-spark {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+  margin-right: 8px;
+  box-shadow: 0 0 12px var(--brand);
+}
+.pomo-modes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--raisedcard);
+}
+.pomo-modes button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--secondary);
+  padding: 11px 18px;
+  font-weight: 700;
+}
+.pomo-modes button[aria-pressed="true"] {
+  background: var(--brand);
+  color: #0a0f0d;
+}
+.pomo-clock {
+  width: min(100%, 330px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 13px;
+  background: conic-gradient(
+    var(--brand) var(--pomo-progress, 0%),
+    rgba(255, 255, 255, 0.1) 0
+  );
+  box-shadow: 0 0 75px rgba(79, 214, 168, 0.08);
+  transition: background 0.2s;
+}
+.pomo-clock-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 50%;
+  background: var(--page-b);
+}
+#pomo-phase-label {
+  color: var(--brand);
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  font-weight: 800;
+}
+#pomo-time {
+  font-family: "Syne", sans-serif;
+  font-size: clamp(3.5rem, 9vw, 5rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+#pomo-timer-status {
+  color: var(--secondary);
+  font-size: 0.82rem;
+}
+.pomo-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.pomo-controls button {
+  border-radius: 12px;
+  padding: 13px 21px;
+  font-weight: 800;
+  border: 1px solid var(--border);
+}
+.pomo-controls .pomo-primary {
+  background: var(--brand);
+  color: #0a0f0d;
+  border-color: var(--brand);
+  min-width: 155px;
+}
+.pomo-controls .pomo-secondary {
+  background: var(--raisedcard);
+  color: var(--primary);
+}
+.pomo-lower {
+  width: min(100%, 550px);
+  display: grid;
+  gap: 18px;
+}
+.pomo-lower label {
+  text-align: left;
+  font-weight: 700;
+  color: var(--primary);
+}
+#pomo-intention {
+  width: 100%;
+  margin-top: 9px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--raisedcard);
+  color: var(--primary);
+}
+.pomo-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.pomo-stats div {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--raisedcard);
+  padding: 14px 8px;
+  display: grid;
+  gap: 7px;
+}
+.pomo-stats strong {
+  font-size: 1.45rem;
+  font-family: "Syne", sans-serif;
+  color: var(--primary);
+}
+.pomo-stats span {
+  font-size: 0.72rem;
+  color: var(--secondary);
+}
+.pomo-hint {
+  color: var(--secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.pomodoro-panel button:focus-visible,
+#pomo-intention:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+@media (max-width: 520px) {
+  .pomodoro-panel {
+    gap: 20px;
+    padding: 18px 12px;
+  }
+  .pomo-modes button {
+    padding: 9px 11px;
+    font-size: 0.78rem;
+  }
+  .pomo-clock {
+    width: min(100%, 275px);
+  }
+  .pomo-controls button {
+    padding: 12px 15px;
+  }
+  .pomo-stats span {
+    font-size: 0.66rem;
+  }
+}
+
+/* Adjustable Pomodoro settings */
+.pomo-settings {
+  width: min(100%, 550px);
+  text-align: left;
+}
+.pomo-settings-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 17px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--raisedcard);
+  color: var(--primary);
+  font-weight: 700;
+}
+.pomo-settings-toggle[aria-expanded="true"] {
+  border-color: var(--brand);
+  border-radius: 12px 12px 0 0;
+}
+.pomo-settings-form {
+  display: grid;
+  gap: 15px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: var(--card);
+  margin: 0;
+}
+.pomo-settings-form > p {
+  font-size: 0.83rem;
+  color: var(--secondary);
+  line-height: 1.5;
+}
+.pomo-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.pomo-settings-fields label {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.83rem;
+}
+.pomo-settings-fields label span {
+  font-weight: 400;
+  color: var(--secondary);
+  font-size: 0.72rem;
+}
+.pomo-settings-fields input {
+  width: 100%;
+  margin-top: 9px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--raisedcard);
+  color: var(--primary);
+  font: inherit;
+}
+.pomo-settings-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pomo-settings-actions button {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-weight: 700;
+}
+.pomo-settings-actions .pomo-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #0a0f0d;
+}
+.pomo-settings-actions .pomo-secondary {
+  background: var(--raisedcard);
+  color: var(--primary);
+}
+.pomo-settings-form .pomo-settings-note {
+  font-size: 0.75rem;
+}
+@media (max-width: 480px) {
+  .pomo-settings-fields {
+    grid-template-columns: 1fr;
+  }
+  .pomo-settings-form {
+    padding: 14px;
+  }
 }
