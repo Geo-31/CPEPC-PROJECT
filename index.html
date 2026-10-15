@@ -6,19 +6,29 @@
     <title>StudyHub</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="style.css" />
+    <script>
+      /* Apply the saved theme before first paint to avoid a flash. */
+      (function () {
+        var theme = "dark";
+        try {
+          var pref = localStorage.getItem("studyhub-theme") || "dark";
+          theme =
+            pref === "system"
+              ? window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark"
+              : pref === "light"
+                ? "light"
+                : "dark";
+        } catch (e) {}
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
   </head>
   <body>
     <header class="app-header">
-      <div class="session-controls" aria-label="Demo session">
-        <span id="session-identity">Signed in as Student</span>
-        <label for="active-role">Demo role</label>
-        <select id="active-role">
-          <option value="USER">User</option>
-          <option value="STAFF">Staff</option>
-          <option value="ADMIN">Admin</option>
-        </select>
-      </div>
-      <p id="permission-message" role="status" aria-live="polite" hidden></p>
+      <p id="app-message" role="status" aria-live="polite" hidden></p>
       <form id="search-form" role="search">
         <label class="sr-only" for="global-search">Search tasks</label>
         <input
@@ -40,22 +50,22 @@
         <li>
           <a
             href="#dashboard"
-            data-permission="dashboard:view"
             aria-current="page"
             >Dashboard</a
           >
         </li>
-        <li><a href="#tasks" data-permission="tasks:view">Tasks</a></li>
+        <li><a href="#tasks">Tasks</a></li>
         <li>
-          <a href="#schedules" data-permission="schedules:view">Schedules</a>
+          <a href="#schedules">Schedules</a>
         </li>
-        <li><a href="#notes" data-permission="notes:view">Notes</a></li>
+        <li><a href="#notes">Notes</a></li>
         <li>
-          <a href="#expenses" data-permission="expenses:view">Expenses</a>
+          <a href="#expenses">Expenses</a>
         </li>
-        <li><a href="#focus" data-permission="focus:view">Focus</a></li>
+        <li><a href="#focus">Focus</a></li>
+        <li><a href="#metrics">Metrics</a></li>
         <li>
-          <a href="#settings" data-permission="settings:manage">Settings</a>
+          <a href="#settings">Settings</a>
         </li>
       </ul>
     </nav>
@@ -71,7 +81,7 @@
         </section>
 
         <section id="dash-tomorrow" class="dashboard-metric">
-          <h3>Completed</h3>
+          <h3>Done</h3>
           <strong id="summary-completed">0</strong>
         </section>
 
@@ -101,7 +111,6 @@
         <form
           id="task-form"
           class="dashboard-wide"
-          data-permission="record:create"
           novalidate
         >
           <div>
@@ -166,12 +175,9 @@
               <label for="status-filter">Status</label>
               <select id="status-filter">
                 <option value="ALL">All</option>
-                <option value="Planned">Planned</option>
-                <option value="Ready">Ready</option>
-                <option value="In Progress">In progress</option>
-                <option value="In Review">In review</option>
-                <option value="Blocked">Blocked</option>
-                <option value="Completed">Completed</option>
+                <option value="To do">To do</option>
+                <option value="In progress">In progress</option>
+                <option value="Done">Done</option>
               </select>
             </div>
 
@@ -232,7 +238,7 @@
                   <th>Due</th>
                   <th>Priority</th>
                   <th>Status</th>
-                  <th>Derived state</th>
+                  <th>Time left</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -255,15 +261,77 @@
           <h3 id="task-details-title">Task details</h3>
           <p>Select a task to inspect its full record.</p>
         </aside>
-        <p class="authorization-note">
-          Demo only: role checks in this front-end are for interface behavior,
-          not secure authorization. Real authorization must be enforced by a
-          trusted back end.
-        </p>
       </section>
 
       <section id="schedules" aria-labelledby="schedules-title" hidden>
         <h2 id="schedules-title">Schedules</h2>
+
+        <div class="content-card">
+          <h3 id="schedule-form-title">Add class</h3>
+          <div id="schedule-error-summary" role="alert" hidden></div>
+
+          <form id="schedule-form" novalidate>
+            <input type="hidden" id="schedule-id" name="id" />
+
+            <div>
+              <label for="schedule-day">Day</label>
+              <select id="schedule-day" name="day">
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="schedule-start">Start time</label>
+              <input type="time" id="schedule-start" name="startTime" required />
+            </div>
+
+            <div>
+              <label for="schedule-end">End time</label>
+              <input type="time" id="schedule-end" name="endTime" required />
+            </div>
+
+            <div>
+              <label for="schedule-class">Class</label>
+              <input
+                type="text"
+                id="schedule-class"
+                name="className"
+                placeholder="e.g. Discrete Mathematics"
+                required
+              />
+            </div>
+
+            <div>
+              <label for="schedule-code">Course code</label>
+              <input
+                type="text"
+                id="schedule-code"
+                name="courseCode"
+                placeholder="e.g. CMPE 104"
+              />
+            </div>
+
+            <div>
+              <label for="schedule-instructor">Instructor</label>
+              <input
+                type="text"
+                id="schedule-instructor"
+                name="instructor"
+                placeholder="e.g. Prof. Mylo Atencio"
+              />
+            </div>
+
+            <button type="submit" id="schedule-submit">Add class</button>
+            <button type="button" id="schedule-cancel" hidden>Cancel edit</button>
+          </form>
+        </div>
+
         <div class="content-card">
           <h3>DCPET 2-2 Class Schedule</h3>
           <div class="table-wrapper">
@@ -278,103 +346,10 @@
                   <th>Class</th>
                   <th>Course code</th>
                   <th>Instructor</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <th scope="rowgroup" rowspan="2">Monday</th>
-                  <td>10:30 AM–11:30 AM</td>
-                  <td>Computer Engineering as a Discipline</td>
-                  <td>CMPE 101</td>
-                  <td>Prof. Ryan Evangelista</td>
-                </tr>
-                <tr>
-                  <td>1:30 PM–4:30 PM</td>
-                  <td>Filipinolohiya at Pambansang Kaunlaran</td>
-                  <td>GEED 032</td>
-                  <td>Prof. Jhonley Cubacub</td>
-                </tr>
-                <tr>
-                  <th scope="rowgroup" rowspan="3">Tuesday</th>
-                  <td>7:30 AM–10:30 AM</td>
-                  <td>2D Animation</td>
-                  <td>CPET 201</td>
-                  <td>Prof. Jerome De Guzman</td>
-                </tr>
-                <tr>
-                  <td>10:30 AM–1:30 PM</td>
-                  <td>Data Structures and Algorithms</td>
-                  <td>CMPE 201</td>
-                  <td>Prof. Mylo Atencio</td>
-                </tr>
-                <tr>
-                  <td>3:00 PM–6:00 PM</td>
-                  <td>Fundamentals of Electronic Circuits</td>
-                  <td>ECEN 011</td>
-                  <td>TBA</td>
-                </tr>
-                <tr>
-                  <th scope="rowgroup" rowspan="3">Wednesday</th>
-                  <td>10:00 AM–1:00 PM</td>
-                  <td>Discrete Mathematics</td>
-                  <td>CMPE 104</td>
-                  <td>Prof. Mylo Atencio</td>
-                </tr>
-                <tr>
-                  <td>1:00 PM–4:00 PM</td>
-                  <td>Fundamentals of Electrical Circuits</td>
-                  <td>ELEN 012</td>
-                  <td>Prof. Ronald Fernando</td>
-                </tr>
-                <tr>
-                  <td>4:30 PM–6:30 PM</td>
-                  <td>Physical Activity Towards Health and Fitness 3</td>
-                  <td>PATHFIT 3</td>
-                  <td>Prof. Remus Laglagaron</td>
-                </tr>
-                <tr>
-                  <th scope="row">Thursday</th>
-                  <td colspan="4">No classes</td>
-                </tr>
-                <tr>
-                  <th scope="rowgroup" rowspan="4">Friday</th>
-                  <td>7:30 AM–10:30 AM</td>
-                  <td>2D Animation</td>
-                  <td>CPET 201</td>
-                  <td>Prof. Jerome De Guzman</td>
-                </tr>
-                <tr>
-                  <td>10:30 AM–1:30 PM</td>
-                  <td>Data Structures and Algorithms</td>
-                  <td>CMPE 201</td>
-                  <td>Prof. Mylo Atencio</td>
-                </tr>
-                <tr>
-                  <td>3:00 PM–6:00 PM</td>
-                  <td>Fundamentals of Electronic Circuits</td>
-                  <td>ECEN 011</td>
-                  <td>TBA</td>
-                </tr>
-                <tr>
-                  <td>6:00 PM–9:00 PM</td>
-                  <td>CPE Professional Course 1</td>
-                  <td>CMPE-PC1</td>
-                  <td>Prof. Jose Marie Dipay</td>
-                </tr>
-                <tr>
-                  <th scope="rowgroup" rowspan="2">Saturday</th>
-                  <td>7:30 AM–10:30 AM</td>
-                  <td>Fundamentals of Electrical Circuits</td>
-                  <td>ELEN 012</td>
-                  <td>Prof. Ronald Fernando</td>
-                </tr>
-                <tr>
-                  <td>12:00 PM–2:00 PM</td>
-                  <td>CPE Professional Course 1</td>
-                  <td>CMPE-PC1</td>
-                  <td>Prof. Jose Marie Dipay</td>
-                </tr>
-              </tbody>
+              <tbody id="schedule-table-body"></tbody>
             </table>
           </div>
         </div>
@@ -382,44 +357,125 @@
 
       <section id="notes" aria-labelledby="notes-title" hidden>
         <h2 id="notes-title">Notes</h2>
+
+        <div class="content-card">
+          <h3 id="note-form-title">Add note</h3>
+          <div id="note-error-summary" role="alert" hidden></div>
+
+          <form id="note-form" novalidate>
+            <input type="hidden" id="note-id" name="id" />
+
+            <div>
+              <label for="note-title">Title</label>
+              <input
+                type="text"
+                id="note-title"
+                name="title"
+                placeholder="e.g. Electrical circuits"
+                required
+              />
+            </div>
+
+            <div class="field-wide">
+              <label for="note-body">Note</label>
+              <textarea
+                id="note-body"
+                name="body"
+                rows="4"
+                placeholder="Write your study note here"
+                required
+              ></textarea>
+            </div>
+
+            <div>
+              <label for="note-remark">Reminder (optional)</label>
+              <input
+                type="text"
+                id="note-remark"
+                name="remark"
+                placeholder="e.g. Review before the quiz"
+              />
+            </div>
+
+            <button type="submit" id="note-submit">Add note</button>
+            <button type="button" id="note-cancel" hidden>Cancel edit</button>
+          </form>
+        </div>
+
         <div class="content-card">
           <h3>Study notes</h3>
-          <article class="info-entry">
-            <h4>Electrical circuits</h4>
-            <p>
-              For a series circuit, the same current flows through every
-              component. Add the resistances to find the total resistance.
-            </p>
-            <p class="section-note">Review before the next problem set.</p>
-          </article>
-          <article class="info-entry">
-            <h4>Data structures</h4>
-            <p>
-              A linked list stores items in nodes. Each node points to the next
-              node, so inserting or removing an item does not require shifting
-              every later item.
-            </p>
-            <p class="section-note">Remember to trace the pointer changes.</p>
-          </article>
-          <article class="info-entry">
-            <h4>Web development</h4>
-            <p>
-              Use semantic HTML elements to describe the purpose of each part of
-              a page, and keep form labels connected to their controls.
-            </p>
-            <p class="section-note">Unit 1 review</p>
-          </article>
+          <div id="note-list"></div>
+          <p id="note-empty-state" hidden>No notes yet. Add one above.</p>
         </div>
       </section>
 
       <section id="expenses" aria-labelledby="expenses-title" hidden>
         <h2 id="expenses-title">Expenses</h2>
+
         <div class="content-card">
-          <h3>Sample weekly expenses</h3>
+          <h3 id="expense-form-title">Add expense</h3>
+          <div id="expense-error-summary" role="alert" hidden></div>
+
+          <form id="expense-form" novalidate>
+            <input type="hidden" id="expense-id" name="id" />
+
+            <div>
+              <label for="expense-date">Date</label>
+              <input type="date" id="expense-date" name="date" required />
+            </div>
+
+            <div>
+              <label for="expense-item">Item</label>
+              <input
+                type="text"
+                id="expense-item"
+                name="itemName"
+                placeholder="e.g. Bus fare"
+                required
+              />
+            </div>
+
+            <div>
+              <label for="expense-category">Category</label>
+              <input
+                type="text"
+                id="expense-category"
+                name="category"
+                list="expense-category-options"
+                placeholder="e.g. Transport"
+              />
+              <datalist id="expense-category-options">
+                <option value="Transport"></option>
+                <option value="Food"></option>
+                <option value="School supplies"></option>
+                <option value="Other"></option>
+              </datalist>
+            </div>
+
+            <div>
+              <label for="expense-amount">Amount ($)</label>
+              <input
+                type="number"
+                id="expense-amount"
+                name="amount"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                required
+              />
+            </div>
+
+            <button type="submit" id="expense-submit">Add expense</button>
+            <button type="button" id="expense-cancel" hidden>Cancel edit</button>
+          </form>
+        </div>
+
+        <div class="content-card">
+          <h3>Expense log</h3>
           <div class="table-wrapper">
             <table>
               <caption>
-                Example expense log
+                Expense log
               </caption>
               <thead>
                 <tr>
@@ -427,43 +483,19 @@
                   <th>Item</th>
                   <th>Category</th>
                   <th>Amount</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>Monday</td>
-                  <td>Bus fare</td>
-                  <td>Transport</td>
-                  <td>$3.00</td>
-                </tr>
-                <tr>
-                  <td>Tuesday</td>
-                  <td>Lunch</td>
-                  <td>Food</td>
-                  <td>$8.50</td>
-                </tr>
-                <tr>
-                  <td>Wednesday</td>
-                  <td>Printed readings</td>
-                  <td>School supplies</td>
-                  <td>$2.25</td>
-                </tr>
-                <tr>
-                  <td>Thursday</td>
-                  <td>Bus fare</td>
-                  <td>Transport</td>
-                  <td>$3.00</td>
-                </tr>
-              </tbody>
+              <tbody id="expense-table-body"></tbody>
               <tfoot>
                 <tr>
-                  <th colspan="3" scope="row">Sample total</th>
-                  <td>$16.75</td>
+                  <th colspan="3" scope="row">Total</th>
+                  <td id="expense-total">$0.00</td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
           </div>
-          <p class="section-note">Example figures for demonstration only.</p>
         </div>
       </section>
 
@@ -478,45 +510,35 @@
 
       <section id="settings" aria-labelledby="settings-title" hidden>
         <h2 id="settings-title">Settings</h2>
-        <div class="content-card">
-          <h3>Authorization demo</h3>
-          <p>
-            Switch roles in the header to demonstrate permission-based
-            navigation and task actions. This role selector is not
-            authentication.
-          </p>
-          <div class="table-wrapper permission-matrix">
-            <table>
-              <caption>
-                Demo role permission matrix
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Capability</th>
-                  <th scope="col">User</th>
-                  <th scope="col">Staff</th>
-                  <th scope="col">Admin</th>
-                </tr>
-              </thead>
-              <tbody id="permission-matrix-body"></tbody>
-            </table>
-          </div>
-          <p class="section-note">
-            Record visibility, ownership, and workflow state are checked in
-            addition to these role capability grants.
-          </p>
-          <p class="authorization-note">
-            Client-side permission checks can be bypassed. A trusted back end
-            must verify every identity, role, and record-level permission before
-            accessing or changing protected data.
-          </p>
-        </div>
-      </section>
 
-      <!-- ========================================== -->
-      <!-- UNIT 8 & 9: Data Management & Metrics -->
-      <!-- ========================================== -->
-      <section id="system-data" class="content-card" aria-labelledby="system-data-title">
+        <section id="appearance-settings" class="content-card" aria-labelledby="appearance-title">
+          <h3 id="appearance-title">Appearance</h3>
+          <p class="section-note">Choose how StudyHub looks. Your choice is remembered on this device.</p>
+
+          <fieldset class="theme-options">
+            <legend class="sr-only">Color theme</legend>
+
+            <label class="theme-option" for="theme-dark">
+              <input type="radio" id="theme-dark" name="theme" value="dark" />
+              Dark
+            </label>
+
+            <label class="theme-option" for="theme-light">
+              <input type="radio" id="theme-light" name="theme" value="light" />
+              Light
+            </label>
+
+            <label class="theme-option" for="theme-system">
+              <input type="radio" id="theme-system" name="theme" value="system" />
+              Match my device
+            </label>
+          </fieldset>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- UNIT 8: Data Management                  -->
+        <!-- ========================================== -->
+        <section id="system-data" class="content-card" aria-labelledby="system-data-title">
         <h3 id="system-data-title">Unit 8: Persistence, Backup, & Audit Trail</h3>
         <p class="section-note">Survives page refresh via versioned localStorage schema, provides safe imports, and records state mutations.</p>
         
@@ -550,7 +572,7 @@
                   <th>Timestamp</th>
                   <th>Actor</th>
                   <th>Action</th>
-                  <th>Task ID</th>
+                  <th>Target</th>
                   <th>Details</th>
                 </tr>
               </thead>
@@ -558,7 +580,14 @@
             </table>
           </div>
         </div>
+        </section>
       </section>
+
+      <!-- ========================================== -->
+      <!-- UNIT 9 & 10: Metrics page                  -->
+      <!-- ========================================== -->
+      <section id="metrics" aria-labelledby="metrics-title" hidden>
+        <h2 id="metrics-title">Metrics</h2>
 
       <section id="system-metrics" class="content-card" aria-labelledby="system-metrics-title">
         <h3 id="system-metrics-title">Unit 9: Live Derived Metrics & Analytics</h3>
@@ -568,7 +597,7 @@
           <article class="metric-card">
             <h4>Completion Rate</h4>
             <strong id="metric-completion-rate">0%</strong>
-            <small>Completed vs Total Tasks</small>
+            <small>Done vs Total Tasks</small>
           </article>
           <article class="metric-card">
             <h4>Average Study Time</h4>
@@ -581,9 +610,9 @@
             <small>Past due pending items</small>
           </article>
           <article class="metric-card">
-            <h4>Blocked Backlog</h4>
-            <strong id="metric-blocked-count">0</strong>
-            <small>Tasks needing intervention</small>
+            <h4>In Progress</h4>
+            <strong id="metric-in-progress-count">0</strong>
+            <small>Tasks being worked on now</small>
           </article>
         </div>
 
@@ -615,7 +644,7 @@
       <!-- ========================================== -->
       <section id="qa-suite" class="content-card" aria-labelledby="qa-suite-title">
         <h3 id="qa-suite-title">Unit 10: Integrated Front-End Quality Assurance</h3>
-        <p class="section-note">Automated stress tests covering storage failure recovery, illegal transitions, role enforcement, and resilience.</p>
+        <p class="section-note">Automated stress tests covering storage failure recovery, illegal workflow transitions, and resilience.</p>
         
         <div class="qa-score-card">
           <p><strong>Weighted Quality Score:</strong> <span id="qa-quality-score">Calculating...</span></p>
@@ -637,6 +666,7 @@
             <tbody id="qa-test-results-body"></tbody>
           </table>
         </div>
+      </section>
       </section>
     </main>
 

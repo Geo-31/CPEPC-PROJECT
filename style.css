@@ -102,19 +102,7 @@ body {
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
-.session-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-right: auto;
-}
-
-#session-identity {
-  color: var(--secondary);
-}
-
-#permission-message {
+#app-message {
   width: 100%;
   color: var(--secondary);
   text-align: right;
@@ -409,25 +397,6 @@ button[type="submit"] {
   font-size: 0.85rem;
 }
 
-.authorization-note {
-  margin-block: var(--space-3);
-  padding: var(--space-3);
-  border-left: 3px solid var(--tasks);
-  background: var(--tasks-bg);
-  color: var(--primary);
-  line-height: 1.5;
-}
-
-.permission-matrix table {
-  min-width: 620px;
-}
-
-.permission-check {
-  text-align: center;
-  color: var(--success);
-  font-weight: 700;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -450,6 +419,7 @@ button[type="submit"] {
 
 #focus-toggle,
 #task-list button,
+#task-details button,
 #task-pagination button {
   font-family: inherit;
   border-radius: var(--radius);
@@ -735,4 +705,278 @@ body.focus-mode .focus-panel {
 .status-badge-fail {
   color: var(--danger);
   font-weight: 700;
+}
+
+/* ==========================================
+   TASK STATUS: PILLS, OVERDUE, MAIN ACTION
+   ========================================== */
+
+.status-pill {
+  display: inline-block;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-todo {
+  color: var(--secondary);
+  background: var(--card);
+}
+
+.status-in-progress {
+  color: var(--schedules);
+  background: var(--schedules-bg);
+  border-color: transparent;
+}
+
+.status-done {
+  color: var(--success);
+  background: var(--brand-dim);
+  border-color: transparent;
+}
+
+.badge-overdue {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+#task-list button.primary-action,
+#task-details button.primary-action {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--page-a);
+  font-weight: 700;
+}
+
+.detail-actions {
+  margin-top: var(--space-4);
+}
+
+/* ==========================================
+   SCHEDULES CRUD
+   ========================================== */
+
+#schedule-form {
+  align-items: flex-end;
+  margin-bottom: 0;
+}
+
+#schedule-form > div {
+  flex: 1 1 180px;
+}
+
+#schedule-form input,
+#schedule-form select {
+  width: 100%;
+}
+
+#schedule-form input[type="time"] {
+  color-scheme: dark;
+}
+
+#schedule-cancel,
+#schedule-table-body button {
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--primary);
+  padding: var(--space-2) var(--space-3);
+}
+
+#schedule-table-body .btn-danger {
+  background: rgba(255, 92, 92, 0.15);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+#schedule-error-summary {
+  margin-bottom: var(--space-3);
+}
+
+#schedule-table-body th[scope="rowgroup"],
+#schedule-table-body th[scope="row"] {
+  text-align: left;
+  vertical-align: top;
+  color: var(--primary);
+  font-size: 0.85rem;
+  text-transform: none;
+}
+
+/* ==========================================
+   NOTES + EXPENSES CRUD
+   ========================================== */
+
+#note-form,
+#expense-form {
+  align-items: flex-end;
+  margin-bottom: 0;
+}
+
+#note-form > div,
+#expense-form > div {
+  flex: 1 1 180px;
+}
+
+#note-form > .field-wide {
+  flex: 1 1 100%;
+}
+
+#note-form input,
+#note-form textarea,
+#expense-form input {
+  width: 100%;
+}
+
+#expense-form input[type="date"] {
+  color-scheme: dark;
+}
+
+#note-cancel,
+#expense-cancel,
+#note-list button,
+#expense-table-body button {
+  font-family: inherit;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--primary);
+  padding: var(--space-2) var(--space-3);
+}
+
+#note-list .btn-danger,
+#expense-table-body .btn-danger {
+  background: rgba(255, 92, 92, 0.15);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+#note-error-summary,
+#expense-error-summary {
+  margin-bottom: var(--space-3);
+}
+
+#note-list .info-entry p {
+  white-space: pre-line;
+}
+
+#note-list .task-actions {
+  margin-top: var(--space-3);
+}
+
+#note-list .info-entry:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+#expense-total {
+  font-weight: 700;
+  color: var(--expenses);
+}
+
+tfoot th,
+tfoot td {
+  border-bottom: none;
+}
+
+/* ==========================================
+   SETTINGS: APPEARANCE + LIGHT THEME
+   ========================================== */
+
+.theme-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border: none;
+  margin-top: var(--space-3);
+}
+
+.theme-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 0;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.theme-option input[type="radio"] {
+  width: auto;
+  padding: 0;
+  accent-color: var(--brand);
+}
+
+.theme-option:has(input:checked) {
+  border-color: var(--brand);
+  background: var(--brand-dim);
+}
+
+.theme-option:has(input:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --page-a: #f7f9f8;
+  --page-b: #e9efec;
+
+  --card: rgba(0, 0, 0, 0.03);
+  --raisedcard: rgba(0, 0, 0, 0.055);
+  --border: rgba(0, 0, 0, 0.12);
+
+  --primary: #14201b;
+  --secondary: #46524c;
+  --muted: #5b6761;
+
+  --brand: #0a7556;
+  --brand-dim: #d6f1e6;
+
+  --tasks: #946000;
+  --tasks-bg: #fbedd0;
+  --schedules: #1766ad;
+  --schedules-bg: #dbe9f7;
+  --notes: #7237bb;
+  --notes-bg: #eadcf8;
+  --expenses: #b82a52;
+  --expenses-bg: #fadbe4;
+  --focus: #0a7556;
+  --focus-bg: #d6f1e6;
+
+  --danger: #c02626;
+  --success: #0f7a49;
+}
+
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(
+      1600px 900px at 15% -10%,
+      rgba(10, 117, 86, 0.08),
+      transparent 100%
+    ),
+    linear-gradient(180deg, var(--page-a), var(--page-b));
+  background-color: var(--page-a);
+  background-attachment: fixed;
+}
+
+:root[data-theme="light"] select,
+:root[data-theme="light"] #schedule-form input[type="time"],
+:root[data-theme="light"] #expense-form input[type="date"] {
+  color-scheme: light;
+}
+
+:root[data-theme="light"] .btn-danger,
+:root[data-theme="light"] #schedule-table-body .btn-danger,
+:root[data-theme="light"] #note-list .btn-danger,
+:root[data-theme="light"] #expense-table-body .btn-danger {
+  background: rgba(192, 38, 38, 0.08);
 }
