@@ -102,6 +102,29 @@ body {
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-right: auto;
+  color: var(--primary);
+  font-family: "Syne", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.app-brand img {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  object-fit: contain;
+}
+.app-brand:focus-visible {
+  border-radius: var(--radius);
+  outline: 2px solid var(--brand);
+  outline-offset: 4px;
+}
 #app-message {
   width: 100%;
   color: var(--secondary);
@@ -575,6 +598,7 @@ body.focus-mode .focus-panel {
   #task-list td:last-child {
     min-width: 160px;
   }
+
 }
 
 /* ==========================================
@@ -695,6 +719,67 @@ body.focus-mode .focus-panel {
   padding: var(--space-3);
   margin-bottom: var(--space-3);
   border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+#admin-qa-run {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  margin: var(--space-2) 0;
+  padding: 0.7rem 1.15rem;
+  border: 1px solid var(--brand);
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, var(--brand), #34b98d);
+  color: #07130f;
+  font: inherit;
+  font-weight: 800;
+  box-shadow: 0 5px 16px rgba(79, 214, 168, 0.18);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+
+#admin-qa-run svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+#admin-qa-run:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 8px 22px rgba(79, 214, 168, 0.28);
+}
+
+#admin-qa-run:active {
+  transform: translateY(0);
+}
+
+#admin-qa-run:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #admin-qa-run {
+    transition: none;
+  }
+
+  #admin-qa-run:hover {
+    transform: none;
+  }
+}
+
+.qa-category-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.qa-category-scores p {
+  margin: 0;
 }
 
 .status-badge-pass {
@@ -910,6 +995,45 @@ body.focus-mode .focus-panel {
 
 #expense-form input[type="date"] {
   color-scheme: dark;
+}
+
+@media (max-width: 768px) {
+  #note-form,
+  #expense-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-3);
+    width: 100%;
+  }
+
+  #note-form > div,
+  #expense-form > div,
+  #note-form > .field-wide {
+    flex: initial;
+    min-width: 0;
+  }
+
+  #note-form > .field-wide {
+    grid-column: 1 / -1;
+  }
+
+  #note-form > button,
+  #expense-form > button {
+    width: 100%;
+    min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 420px) {
+  #note-form,
+  #expense-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #note-form > .field-wide {
+    grid-column: auto;
+  }
 }
 
 #note-cancel,

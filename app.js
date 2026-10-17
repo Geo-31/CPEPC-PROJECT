@@ -554,7 +554,253 @@ const state = {
   editingExpense: null,
 
   auditLog: [],
+  preferences: {
+    theme: null,
+  },
 };
+
+/* -----------------------------
+   Unit 8: versioned persistence
+   ----------------------------- */
+
+const STORAGE_KEY = "studyhub-state-v1";
+const SCHEMA_VERSION = 1;
+const DEFAULT_STATE = JSON.parse(JSON.stringify(state));
+let pendingImport = null;
+let persistenceBlocked = false;
+
+function showStorageStatus(message, isError = false) {
+  const status = document.querySelector("#storage-status-message");
+  if (!status) return;
+
+  status.textContent = message;
+  status.hidden = !message;
+  status.setAttribute("role", isError ? "alert" : "status");
+}
+
+function hasUniqueIds(items) {
+  return (
+    Array.isArray(items) &&
+    items.every((item) => item && typeof item.id === "string" && item.id) &&
+    new Set(items.map((item) => item.id)).size === items.length
+  );
+}
+
+function isValidPayload(payload) {
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    Array.isArray(payload) ||
+    payload.schemaVersion !== SCHEMA_VERSION ||
+    typeof payload.savedAt !== "string" ||
+    Number.isNaN(Date.parse(payload.savedAt)) ||
+    !["admin", "student", "teacher"].includes(payload.activeRole) ||
+    !payload.preferences ||
+    typeof payload.preferences !== "object" ||
+    !["dark", "light", "system"].includes(payload.preferences.theme) ||
+    !payload.preferences.filters ||
+    !["ALL", ...WORKFLOW_PATH].includes(payload.preferences.filters.status) ||
+    !["ALL", "High", "Medium", "Low"].includes(
+      payload.preferences.filters.priority,
+    ) ||
+    !payload.preferences.sort ||
+    ![
+      "title",
+      "subject",
+      "dueDate",
+      "createdAt",
+      "priority",
+      "status",
+    ].includes(payload.preferences.sort.key) ||
+    !["asc", "desc"].includes(payload.preferences.sort.direction) ||
+    ![5, 10, 15].includes(payload.preferences.pageSize) ||
+    !Array.isArray(payload.records) ||
+    !Array.isArray(payload.archivedRecords) ||
+    !Array.isArray(payload.schedules) ||
+    !Array.isArray(payload.notes) ||
+    !Array.isArray(payload.expenses) ||
+    !Array.isArray(payload.auditLog)
+  ) {
+    return false;
+  }
+
+  const allTasks = [...payload.records, ...payload.archivedRecords];
+  if (
+    !hasUniqueIds(payload.records) ||
+    !hasUniqueIds(payload.archivedRecords) ||
+    new Set(allTasks.map((task) => task.id)).size !== allTasks.length ||
+    allTasks.some(
+      (task) =>
+        typeof task.title !== "string" ||
+        typeof task.subject !== "string" ||
+        typeof task.description !== "string" ||
+        typeof task.dueDate !== "string" ||
+        !["High", "Medium", "Low"].includes(task.priority) ||
+        !WORKFLOW_PATH.includes(task.status) ||
+        typeof task.createdAt !== "string" ||
+        !Number.isFinite(task.estimatedMinutes) ||
+        !Array.isArray(task.workflowHistory),
+    ) ||
+    payload.schedules.some(
+      (item) =>
+        !item ||
+        typeof item.id !== "string" ||
+        ![
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ].includes(item.day) ||
+        typeof item.startTime !== "string" ||
+        typeof item.endTime !== "string" ||
+        typeof item.className !== "string" ||
+        typeof item.courseCode !== "string" ||
+        typeof item.instructor !== "string",
+    ) ||
+    !hasUniqueIds(payload.schedules) ||
+    payload.notes.some(
+      (item) =>
+        !item ||
+        typeof item.id !== "string" ||
+        typeof item.title !== "string" ||
+        typeof item.body !== "string" ||
+        typeof item.remark !== "string",
+    ) ||
+    !hasUniqueIds(payload.notes) ||
+    payload.expenses.some(
+      (item) =>
+        !item ||
+        typeof item.id !== "string" ||
+        typeof item.date !== "string" ||
+        typeof item.item !== "string" ||
+        typeof item.category !== "string" ||
+        !Number.isFinite(item.amount) ||
+        item.amount <= 0,
+    ) ||
+    !hasUniqueIds(payload.expenses) ||
+    payload.auditLog.some(
+      (entry) =>
+        !entry ||
+        typeof entry.timestamp !== "string" ||
+        Number.isNaN(Date.parse(entry.timestamp)) ||
+        typeof entry.actor !== "string" ||
+        typeof entry.action !== "string" ||
+        typeof entry.targetId !== "string" ||
+        typeof entry.details !== "string",
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function applyPayload(payload) {
+  state.records = payload.records;
+  state.archivedRecords = payload.archivedRecords;
+  state.schedules = payload.schedules;
+  state.notes = payload.notes;
+  state.expenses = payload.expenses;
+  state.auditLog = payload.auditLog.slice(0, 200);
+  state.filters = { ...payload.preferences.filters };
+  state.sort = { ...payload.preferences.sort };
+  state.pageSize = payload.preferences.pageSize;
+  state.preferences = { theme: payload.preferences.theme };
+  state.query = "";
+  state.page = 1;
+  state.selectedRecord = null;
+  state.editingRecord = null;
+  state.editingSchedule = null;
+  state.editingNote = null;
+  state.editingExpense = null;
+}
+
+function createStoragePayload() {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    savedAt: new Date().toISOString(),
+    records: state.records,
+    archivedRecords: state.archivedRecords,
+    schedules: state.schedules,
+    notes: state.notes,
+    expenses: state.expenses,
+    preferences: {
+      theme: state.preferences.theme,
+      filters: state.filters,
+      sort: state.sort,
+      pageSize: state.pageSize,
+    },
+    activeRole: session.role,
+    auditLog: state.auditLog,
+  };
+}
+
+function saveState() {
+  if (!currentUser || persistenceBlocked) return false;
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(createStoragePayload()));
+    return true;
+  } catch (error) {
+    console.error("Unable to save StudyHub state.", error);
+    showStorageStatus(
+      "StudyHub could not save your data. Check browser storage settings; export a backup if possible.",
+      true,
+    );
+    return false;
+  }
+}
+
+function restoreState() {
+  if (!currentUser) {
+    persistenceBlocked = true;
+    return;
+  }
+
+  let raw;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.error("Unable to read saved StudyHub state.", error);
+    persistenceBlocked = true;
+    showStorageStatus(
+      "Saved data could not be read. The app is using safe defaults; check browser storage settings.",
+      true,
+    );
+    return;
+  }
+
+  if (raw === null) return;
+
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch (error) {
+    console.error("Saved StudyHub data is malformed JSON.", error);
+    persistenceBlocked = true;
+    showStorageStatus(
+      "Saved data is malformed. The app is using safe defaults and has left the saved data untouched so it can be recovered.",
+      true,
+    );
+    return;
+  }
+
+  if (!isValidPayload(payload)) {
+    persistenceBlocked = true;
+    showStorageStatus(
+      "Saved data is incomplete, invalid, or from an unsupported schema version. The app is using safe defaults and has left the saved data untouched.",
+      true,
+    );
+    return;
+  }
+
+  applyPayload(payload);
+}
+
+restoreState();
 
 /* -----------------------------
    2. Stored and derived fields
@@ -882,12 +1128,17 @@ function percentOf(part, whole) {
 
 function computeMetrics(records) {
   const total = records.length;
+  // Completion rate: finished tasks (Done or Archived) divided by all tasks.
   const done = records.filter(isFinished).length;
+  // In-progress count: tasks whose current workflow status is "In progress".
   const inProgress = records.filter(
     (task) => task.status === "In progress",
   ).length;
+  // Pending means any task not yet Done or Archived.
   const pending = records.filter((task) => !isFinished(task));
+  // Overdue rate: overdue pending tasks divided by all pending tasks.
   const overdue = pending.filter(getIsOverdue).length;
+  // Average study time: sum of pending estimated minutes divided by pending count.
   const pendingMinutes = pending.reduce(
     (sum, task) => sum + task.estimatedMinutes,
     0,
@@ -914,6 +1165,406 @@ function computeMetrics(records) {
     })),
   };
 }
+
+function runDashboardMetricAssertions() {
+  const fixture = [
+    {
+      status: "Done",
+      priority: "High",
+      dueDate: "2999-01-01",
+      estimatedMinutes: 30,
+    },
+    {
+      status: "Archived",
+      priority: "Medium",
+      dueDate: "2999-01-01",
+      estimatedMinutes: 60,
+    },
+    {
+      status: "In progress",
+      priority: "Low",
+      dueDate: "2000-01-01",
+      estimatedMinutes: 60,
+    },
+    {
+      status: "To do",
+      priority: "High",
+      dueDate: "2999-01-01",
+      estimatedMinutes: 30,
+    },
+  ];
+  const metrics = computeMetrics(fixture);
+  const emptyMetrics = computeMetrics([]);
+
+  const checks = [
+    metrics.total === 4,
+    metrics.done === 2,
+    metrics.completionRate === 50,
+    metrics.pendingCount === 2,
+    metrics.inProgress === 1,
+    metrics.overdue === 1,
+    metrics.overdueRate === 50,
+    metrics.avgMinutes === 45,
+    metrics.byStatus.reduce((sum, row) => sum + row.count, 0) === metrics.total,
+    metrics.byPriority.reduce((sum, row) => sum + row.count, 0) ===
+      metrics.total,
+    emptyMetrics.total === 0 &&
+      emptyMetrics.completionRate === 0 &&
+      emptyMetrics.overdueRate === 0 &&
+      emptyMetrics.avgMinutes === 0 &&
+      [...emptyMetrics.byStatus, ...emptyMetrics.byPriority].every(
+        (row) => row.count === 0,
+      ),
+  ];
+
+  checks.forEach((passed, index) => {
+    console.assert(passed, `Unit 9 metric assertion ${index + 1} failed.`);
+  });
+  console.log(
+    `Unit 9 dashboard assertions completed (${checks.length} checks).`,
+  );
+}
+
+/* -----------------------------
+   Unit 10: Admin QA / quality score
+   ----------------------------- */
+const QA_WEIGHTS = {
+  F: 0.3,
+  R: 0.2,
+  A: 0.2,
+  V: 0.15,
+  C: 0.15,
+};
+
+function computeQualityScore(results) {
+  const grouped = Object.fromEntries(
+    Object.keys(QA_WEIGHTS).map((category) => [category, []]),
+  );
+
+  results.forEach((entry) => {
+    if (grouped[entry.category]) grouped[entry.category].push(entry.passed);
+  });
+
+  const categoryScore = (category) => {
+    const checks = grouped[category];
+    if (!checks || checks.length === 0) return 100;
+    const passed = checks.filter(Boolean).length;
+    return (passed / checks.length) * 100;
+  };
+
+  const score = Object.entries(QA_WEIGHTS).reduce(
+    (total, [category, weight]) => total + categoryScore(category) * weight,
+    0,
+  );
+
+  return Math.round(score);
+}
+
+function computeCategoryScores(results) {
+  return Object.fromEntries(
+    Object.keys(QA_WEIGHTS).map((category) => {
+      const categoryResults = results.filter(
+        (entry) => entry.category === category,
+      );
+      const passed = categoryResults.filter((entry) => entry.passed).length;
+      const score = categoryResults.length
+        ? Math.round((passed / categoryResults.length) * 100)
+        : 100;
+      return [category, score];
+    }),
+  );
+}
+
+function runQualityAssuranceSuite() {
+  const originalBlocked = persistenceBlocked;
+
+  const runTest = (
+    testId,
+    category,
+    precondition,
+    action,
+    expected,
+    evaluator,
+  ) => {
+    let passed = false;
+    try {
+      passed = Boolean(evaluator());
+    } catch (error) {
+      console.error(`QA test ${testId} failed to complete.`, error);
+    }
+    return {
+      id: testId,
+      category,
+      precondition,
+      action,
+      expected,
+      passed,
+    };
+  };
+
+  const results = [
+    runTest(
+      "F-01",
+      "F",
+      "Fresh task list",
+      "Attempt invalid transition: To do → Archived",
+      "Rejected",
+      () =>
+        !evaluateTransition(
+          {
+            status: "To do",
+            title: "Task",
+            subject: "Math",
+            dueDate: "2026-10-30",
+          },
+          "Archived",
+        ).allowed,
+    ),
+    runTest(
+      "F-02",
+      "F",
+      "Task with required fields",
+      "Allow valid transition: To do → In progress",
+      "Accepted",
+      () =>
+        evaluateTransition(
+          {
+            status: "To do",
+            title: "Task",
+            subject: "Math",
+            dueDate: "2026-10-30",
+          },
+          "In progress",
+        ).allowed,
+    ),
+    runTest(
+      "R-01",
+      "R",
+      "Malformed stored JSON",
+      "Restore state after parse failure",
+      "Recovery mode enabled",
+      () => {
+        let originalStorageValue;
+        let changedStorage = false;
+        const statusElement = document.querySelector("#storage-status-message");
+        const previousStatus = statusElement
+          ? {
+              text: statusElement.textContent,
+              hidden: statusElement.hidden,
+              role: statusElement.getAttribute("role"),
+            }
+          : null;
+        try {
+          originalStorageValue = localStorage.getItem(STORAGE_KEY);
+          localStorage.setItem(STORAGE_KEY, "{bad json");
+          changedStorage = true;
+          persistenceBlocked = false;
+          restoreState();
+          return persistenceBlocked === true;
+        } catch (error) {
+          console.error("Unable to run QA storage-recovery check.", error);
+          return false;
+        } finally {
+          persistenceBlocked = originalBlocked;
+          if (changedStorage) {
+            try {
+              if (originalStorageValue === null) {
+                localStorage.removeItem(STORAGE_KEY);
+              } else {
+                localStorage.setItem(STORAGE_KEY, originalStorageValue);
+              }
+            } catch (error) {
+              console.error("Unable to restore storage after QA check.", error);
+              throw new Error(
+                "QA storage check could not restore saved data.",
+                {
+                  cause: error,
+                },
+              );
+            }
+          }
+          if (statusElement && previousStatus) {
+            statusElement.textContent = previousStatus.text;
+            statusElement.hidden = previousStatus.hidden;
+            if (previousStatus.role === null) {
+              statusElement.removeAttribute("role");
+            } else {
+              statusElement.setAttribute("role", previousStatus.role);
+            }
+          }
+        }
+      },
+    ),
+    runTest(
+      "A-01",
+      "A",
+      "Generic system event",
+      "Log an audit entry",
+      "Entry recorded with actor and timestamp",
+      () => {
+        const before = [...state.auditLog];
+        try {
+          logAudit("STATUS_CHANGE", "QA-TEST", "Admin QA pass");
+          const entry = state.auditLog[0];
+          return (
+            state.auditLog.length === Math.min(before.length + 1, 200) &&
+            entry.action === "STATUS_CHANGE" &&
+            entry.targetId === "QA-TEST" &&
+            entry.actor === session.displayName &&
+            Number.isFinite(Date.parse(entry.timestamp))
+          );
+        } finally {
+          state.auditLog = before;
+        }
+      },
+    ),
+    runTest(
+      "V-01",
+      "V",
+      "Unsupported schema payload",
+      "Validate imported data",
+      "Rejected as invalid",
+      () =>
+        !isValidPayload({
+          schemaVersion: 999,
+          records: [],
+          archivedRecords: [],
+          schedules: [],
+          notes: [],
+          expenses: [],
+          preferences: {
+            theme: "light",
+            filters: { status: "ALL", priority: "ALL" },
+            sort: { key: "dueDate", direction: "asc" },
+            pageSize: 10,
+          },
+          activeRole: "student",
+          auditLog: [],
+        }),
+    ),
+    runTest(
+      "V-02",
+      "V",
+      "Duplicate task IDs in payload",
+      "Reject invalid record set",
+      "Rejected before import",
+      () =>
+        !isValidPayload({
+          schemaVersion: 1,
+          savedAt: new Date().toISOString(),
+          records: [
+            {
+              id: "TASK-1",
+              title: "X",
+              subject: "Math",
+              description: "First duplicate",
+              dueDate: "2026-10-30",
+              priority: "High",
+              status: "To do",
+              createdAt: "2026-10-16T00:00:00.000Z",
+              estimatedMinutes: 30,
+              workflowHistory: [],
+            },
+            {
+              id: "TASK-1",
+              title: "Y",
+              subject: "Math",
+              description: "Second duplicate",
+              dueDate: "2026-10-30",
+              priority: "High",
+              status: "Done",
+              createdAt: "2026-10-16T00:00:00.000Z",
+              estimatedMinutes: 30,
+              workflowHistory: [],
+            },
+          ],
+          archivedRecords: [],
+          schedules: [],
+          notes: [],
+          expenses: [],
+          preferences: {
+            theme: "light",
+            filters: { status: "ALL", priority: "ALL" },
+            sort: { key: "dueDate", direction: "asc" },
+            pageSize: 10,
+          },
+          activeRole: "student",
+          auditLog: [],
+        }),
+    ),
+    runTest(
+      "C-01",
+      "C",
+      "Empty task collection",
+      "Compute dashboard totals",
+      "Zero figures and no NaN/Infinity",
+      () => {
+        const empty = computeMetrics([]);
+        return (
+          empty.total === 0 &&
+          empty.completionRate === 0 &&
+          empty.overdueRate === 0 &&
+          empty.avgMinutes === 0 &&
+          Number.isFinite(empty.completionRate) &&
+          Number.isFinite(empty.overdueRate) &&
+          Number.isFinite(empty.avgMinutes)
+        );
+      },
+    ),
+  ];
+
+  const score = computeQualityScore(results);
+  return { results, score, categoryScores: computeCategoryScores(results) };
+}
+
+function renderAdminQA(suite) {
+  if (!suite) return;
+
+  const scoreElement = document.querySelector("#admin-qa-quality-score");
+  const resultBody = document.querySelector("#admin-qa-test-results-body");
+  const lastRun = document.querySelector("#admin-qa-last-run");
+
+  if (scoreElement) {
+    scoreElement.textContent = `${suite.score}%`;
+  }
+
+  Object.entries(suite.categoryScores).forEach(([category, score]) => {
+    const element = document.querySelector(
+      `[data-qa-category-score="${category}"]`,
+    );
+    if (element) element.textContent = `${score}%`;
+  });
+
+  if (lastRun) {
+    const passedCount = suite.results.filter((entry) => entry.passed).length;
+    lastRun.textContent = `Last run: ${new Date().toLocaleString()}. ${passedCount} of ${suite.results.length} checks passed.`;
+  }
+
+  if (!resultBody) return;
+
+  resultBody.innerHTML = suite.results
+    .map(
+      (entry) => `
+        <tr>
+          <td>${escapeHTML(entry.id)}</td>
+          <td>${escapeHTML(entry.category)}</td>
+          <td>${escapeHTML(entry.precondition)}</td>
+          <td>${escapeHTML(entry.action)}</td>
+          <td>${escapeHTML(entry.expected)}</td>
+          <td>
+            <span class="status-pill ${entry.passed ? "status-done" : "status-archived"}">
+              ${entry.passed ? "Pass" : "Fail"}
+            </span>
+          </td>
+        </tr>
+      `,
+    )
+    .join("");
+}
+
+document.querySelector("#admin-qa-run")?.addEventListener("click", () => {
+  renderAdminQA(runQualityAssuranceSuite());
+});
 
 /* Colour for each bar, keyed by its label (see [data-tone] rules in style.css). */
 const BAR_TONES = {
@@ -968,41 +1619,103 @@ function renderMetrics(records) {
   const body = document.querySelector("#metric-verification-body");
   if (!body) return;
 
+  const priorExpected = new Map(
+    [...body.querySelectorAll("[data-manual-metric]")].map((input) => [
+      input.dataset.manualMetric,
+      input.value,
+    ]),
+  );
   const rows = [
+    ["total", "Total tasks", m.total, "Count of all active and archived tasks"],
     [
-      "Completion rate",
-      "Finished tasks (Done or Archived) ÷ all tasks × 100",
-      m.total > 0
-        ? `${m.done} ÷ ${m.total} × 100 = ${m.completionRate}%`
-        : "No tasks → 0%",
+      "done",
+      "Completed tasks",
+      m.done,
+      'Count of tasks with status "Done" or "Archived"',
     ],
     [
-      "Average study time",
-      "Total estimated minutes of unfinished tasks ÷ number of unfinished tasks",
-      m.pendingCount > 0
-        ? `${m.pendingMinutes} ÷ ${m.pendingCount} = ${m.avgMinutes} min`
-        : "No unfinished tasks → 0 min",
+      "completionRate",
+      "Completion rate (%)",
+      m.completionRate,
+      "Completed tasks ÷ all tasks × 100; zero tasks gives 0%",
     ],
     [
-      "Overdue rate",
-      "Unfinished tasks past their due date ÷ unfinished tasks × 100",
-      m.pendingCount > 0
-        ? `${m.overdue} ÷ ${m.pendingCount} × 100 = ${m.overdueRate}%`
-        : "No unfinished tasks → 0%",
+      "pending",
+      "Unfinished tasks",
+      m.pendingCount,
+      'Count of tasks not in "Done" or "Archived"',
     ],
     [
-      "In progress",
+      "inProgress",
+      "In-progress tasks",
+      m.inProgress,
       'Count of tasks with status "In progress"',
-      String(m.inProgress),
+    ],
+    [
+      "overdue",
+      "Overdue unfinished tasks",
+      m.overdue,
+      "Count of unfinished tasks whose due date is before today",
+    ],
+    [
+      "overdueRate",
+      "Overdue rate (%)",
+      m.overdueRate,
+      "Overdue unfinished tasks ÷ unfinished tasks × 100; zero unfinished tasks gives 0%",
+    ],
+    [
+      "avgMinutes",
+      "Average study time (min)",
+      m.avgMinutes,
+      "Sum of unfinished estimated minutes ÷ unfinished task count; zero tasks gives 0",
     ],
   ];
 
   body.innerHTML = rows
     .map(
-      ([name, formula, result]) =>
-        `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(formula)}</td><td>${escapeHTML(result)}</td></tr>`,
+      ([key, name, value, formula]) => `
+        <tr>
+          <th scope="row">${escapeHTML(name)}</th>
+          <td>
+            <label class="sr-only" for="manual-metric-${key}">Manually counted expected value for ${escapeHTML(name)}</label>
+            <input
+              id="manual-metric-${key}"
+              type="number"
+              step="1"
+              data-manual-metric="${key}"
+              value="${escapeHTML(priorExpected.get(key) ?? "")}"
+              aria-describedby="metric-check-${key}"
+            />
+            <span id="metric-check-${key}" data-metric-check="${key}" role="status" aria-live="polite">Not checked</span>
+          </td>
+          <td data-calculated-metric="${key}">${value}</td>
+          <td>${escapeHTML(formula)}</td>
+        </tr>`,
     )
     .join("");
+
+  body.querySelectorAll("[data-manual-metric]").forEach((input) => {
+    const check = body.querySelector(
+      `[data-metric-check="${input.dataset.manualMetric}"]`,
+    );
+    const calculated = body.querySelector(
+      `[data-calculated-metric="${input.dataset.manualMetric}"]`,
+    );
+    const updateCheck = () => {
+      if (!check || !calculated) return;
+      if (input.value.trim() === "") {
+        check.textContent = "Not checked";
+        return;
+      }
+
+      check.textContent =
+        Number(input.value) === Number(calculated.textContent)
+          ? "Matches"
+          : "Does not match";
+    };
+    input.addEventListener("input", updateCheck);
+    updateCheck();
+  });
 }
 
 function renderArchives() {
@@ -1249,6 +1962,7 @@ function render() {
   renderSchedules();
   renderNotes();
   renderExpenses();
+  saveState();
 }
 
 /* -----------------------------
@@ -1272,7 +1986,7 @@ function generateTaskId() {
 
 function addTask(task) {
   state.records = [...state.records, task];
-  logAudit("task.create", task.id, task.title);
+  logAudit("CREATE", task.id, task.title);
   state.page = 1;
   render();
   return true;
@@ -1295,7 +2009,7 @@ function updateTask(id, updates) {
     record.id === id ? { ...record, ...updates } : record,
   );
   state.editingRecord = null;
-  logAudit("task.update", id, "Task details edited");
+  logAudit("UPDATE", id, "Task details edited");
   showMessage(`${id} was updated.`);
   render();
   return true;
@@ -1339,7 +2053,7 @@ function transitionTask(id, nextStatus) {
   }
 
   logAudit(
-    "task.transition",
+    archiving ? "ARCHIVE" : "STATUS_CHANGE",
     id,
     `${result.historyEntry.previousStatus} → ${result.historyEntry.nextStatus}`,
   );
@@ -1446,7 +2160,11 @@ function addSchedule(entry) {
 
   const record = { id: generateScheduleId(), ...entry };
   state.schedules = [...state.schedules, record];
-  logAudit("schedule.create", record.id, `${record.className} (${record.day})`);
+  logAudit(
+    "CREATE",
+    record.id,
+    `Schedule: ${record.className} (${record.day})`,
+  );
   showMessage(`${record.id} was added.`);
   render();
   renderScheduleForm();
@@ -1464,7 +2182,7 @@ function updateSchedule(id, updates) {
     item.id === id ? { ...item, ...updates } : item,
   );
   state.editingSchedule = null;
-  logAudit("schedule.update", id, `${updates.className} (${updates.day})`);
+  logAudit("UPDATE", id, `Schedule: ${updates.className} (${updates.day})`);
   showMessage(`${id} was updated.`);
   render();
   renderScheduleForm();
@@ -1481,7 +2199,7 @@ function deleteSchedule(id) {
   const wasEditing = state.editingSchedule === id;
   state.schedules = state.schedules.filter((item) => item.id !== id);
   if (wasEditing) state.editingSchedule = null;
-  logAudit("schedule.delete", id, `${existing.className} (${existing.day})`);
+  logAudit("DELETE", id, `Schedule: ${existing.className} (${existing.day})`);
   showMessage(`${id} was deleted.`);
   render();
   if (wasEditing) renderScheduleForm();
@@ -1607,14 +2325,19 @@ if (scheduleCancel) {
 
 const scheduleBody = document.querySelector("#schedule-table-body");
 
-const scheduleActionsToggle = document.querySelector("#schedule-actions-toggle");
+const scheduleActionsToggle = document.querySelector(
+  "#schedule-actions-toggle",
+);
 const scheduleTable = document.querySelector("#schedule-table");
 
 if (scheduleActionsToggle && scheduleTable) {
   scheduleActionsToggle.addEventListener("click", () => {
-    const showActions = scheduleTable.classList.toggle("schedule-actions-hidden") === false;
+    const showActions =
+      scheduleTable.classList.toggle("schedule-actions-hidden") === false;
     scheduleActionsToggle.setAttribute("aria-pressed", String(showActions));
-    scheduleActionsToggle.textContent = showActions ? "Hide actions" : "Show actions";
+    scheduleActionsToggle.textContent = showActions
+      ? "Hide actions"
+      : "Show actions";
   });
 }
 
@@ -1666,7 +2389,7 @@ function addNote(entry) {
 
   const record = { id: generateNoteId(), ...entry };
   state.notes = [...state.notes, record];
-  logAudit("note.create", record.id, record.title);
+  logAudit("CREATE", record.id, `Note: ${record.title}`);
   showMessage(`${record.id} was added.`);
   render();
   renderNoteForm();
@@ -1685,7 +2408,7 @@ function updateNote(id, updates) {
     item.id === id ? { ...item, ...updates } : item,
   );
   state.editingNote = null;
-  logAudit("note.update", id, updates.title);
+  logAudit("UPDATE", id, `Note: ${updates.title}`);
   showMessage(`${id} was updated.`);
   render();
   renderNoteForm();
@@ -1702,7 +2425,7 @@ function deleteNote(id) {
   const wasEditing = state.editingNote === id;
   state.notes = state.notes.filter((item) => item.id !== id);
   if (wasEditing) state.editingNote = null;
-  logAudit("note.delete", id, existing.title);
+  logAudit("DELETE", id, `Note: ${existing.title}`);
   showMessage(`${id} was deleted.`);
   render();
   if (wasEditing) renderNoteForm();
@@ -1880,9 +2603,9 @@ function addExpense(entry) {
   const record = { id: generateExpenseId(), ...entry };
   state.expenses = [...state.expenses, record];
   logAudit(
-    "expense.create",
+    "CREATE",
     record.id,
-    `${record.item} (${formatMoney(record.amount)})`,
+    `Expense: ${record.item} (${formatMoney(record.amount)})`,
   );
   showMessage(`${record.id} was added.`);
   render();
@@ -1903,9 +2626,9 @@ function updateExpense(id, updates) {
   );
   state.editingExpense = null;
   logAudit(
-    "expense.update",
+    "UPDATE",
     id,
-    `${updates.item} (${formatMoney(updates.amount)})`,
+    `Expense: ${updates.item} (${formatMoney(updates.amount)})`,
   );
   showMessage(`${id} was updated.`);
   render();
@@ -1924,9 +2647,9 @@ function deleteExpense(id) {
   state.expenses = state.expenses.filter((item) => item.id !== id);
   if (wasEditing) state.editingExpense = null;
   logAudit(
-    "expense.delete",
+    "DELETE",
     id,
-    `${existing.item} (${formatMoney(existing.amount)})`,
+    `Expense: ${existing.item} (${formatMoney(existing.amount)})`,
   );
   showMessage(`${id} was deleted.`);
   render();
@@ -2411,14 +3134,16 @@ function runStableIdAssertions() {
     "Assertion 2 failed: sorting changed the set of stable IDs.",
   );
 
-  const deletedId = originalRecords[0].id;
-  const recordsAfterDelete = originalRecords.filter(
-    (record) => record.id !== deletedId,
-  );
+  const deletedId = originalRecords[0]?.id;
+  const recordsAfterDelete = deletedId
+    ? originalRecords.filter((record) => record.id !== deletedId)
+    : [];
 
   console.assert(
-    !recordsAfterDelete.some((record) => record.id === deletedId) &&
-      recordsAfterDelete.every((record) => originalIds.includes(record.id)),
+    deletedId
+      ? !recordsAfterDelete.some((record) => record.id === deletedId) &&
+          recordsAfterDelete.every((record) => originalIds.includes(record.id))
+      : recordsAfterDelete.length === 0,
     "Assertion 3 failed: deleting one record affected other stable IDs.",
   );
 
@@ -2520,6 +3245,10 @@ const THEME_CHOICES = {
 };
 
 function getStoredTheme() {
+  if (Object.hasOwn(THEME_CHOICES, state.preferences.theme)) {
+    return state.preferences.theme;
+  }
+
   try {
     const stored = localStorage.getItem(THEME_KEY);
     return Object.hasOwn(THEME_CHOICES, stored) ? stored : "dark";
@@ -2529,11 +3258,16 @@ function getStoredTheme() {
 }
 
 function storeTheme(choice) {
+  state.preferences.theme = choice;
   try {
     localStorage.setItem(THEME_KEY, choice);
   } catch {
-    /* ignore: the theme still applies for this session */
+    showStorageStatus(
+      "Theme changed for this session, but browser storage could not save it.",
+      true,
+    );
   }
+  saveState();
 }
 
 const lightQuery = window.matchMedia
@@ -2554,6 +3288,7 @@ const themeOptions = document.querySelectorAll('input[name="theme"]');
 
 if (themeOptions.length) {
   const current = getStoredTheme();
+  state.preferences.theme = current;
   themeOptions.forEach((input) => {
     input.checked = input.value === current;
   });
@@ -2575,8 +3310,247 @@ if (themeOptions.length) {
   }
 }
 
+/* -----------------------------
+   Unit 8: backup, import, reset
+   ----------------------------- */
+
+function updateThemeControls() {
+  themeOptions.forEach((input) => {
+    input.checked = input.value === state.preferences.theme;
+  });
+  applyTheme(state.preferences.theme);
+}
+
+function updatePreferenceControls() {
+  const controls = [
+    ["#status-filter", state.filters.status],
+    ["#priority-filter", state.filters.priority],
+    ["#sort-key", state.sort.key],
+    ["#sort-direction", state.sort.direction],
+    ["#page-size", String(state.pageSize)],
+  ];
+  controls.forEach(([selector, value]) => {
+    const control = document.querySelector(selector);
+    if (control) control.value = value;
+  });
+}
+
+function closeImportPreview() {
+  pendingImport = null;
+  const preview = document.querySelector("#import-preview-box");
+  if (preview) preview.hidden = true;
+}
+
+function runPersistenceAssertions() {
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+  const valid = createStoragePayload();
+
+  console.assert(
+    isValidPayload(valid),
+    "Persistence assertion 1 failed: a valid payload was rejected.",
+  );
+  console.assert(
+    (() => {
+      try {
+        return isValidPayload(JSON.parse("{"));
+      } catch {
+        return false;
+      }
+    })() === false,
+    "Persistence assertion 2 failed: malformed JSON was not rejected.",
+  );
+
+  const wrongVersion = clone(valid);
+  wrongVersion.schemaVersion += 1;
+  console.assert(
+    !isValidPayload(wrongVersion),
+    "Persistence assertion 3 failed: an unsupported schema version was accepted.",
+  );
+
+  const missingCollection = clone(valid);
+  delete missingCollection.expenses;
+  console.assert(
+    !isValidPayload(missingCollection),
+    "Persistence assertion 4 failed: a missing required collection was accepted.",
+  );
+
+  const duplicateIds = clone(valid);
+  const sampleTask = { ...DEFAULT_STATE.records[0] };
+  duplicateIds.records = [sampleTask, { ...sampleTask }];
+  console.assert(
+    !isValidPayload(duplicateIds),
+    "Persistence assertion 5 failed: duplicate record IDs were accepted.",
+  );
+
+  const missingTaskField = clone(valid);
+  missingTaskField.records = [{ ...DEFAULT_STATE.records[0] }];
+  delete missingTaskField.records[0].title;
+  console.assert(
+    !isValidPayload(missingTaskField),
+    "Persistence assertion 6 failed: a task with a missing field was accepted.",
+  );
+
+  const emptyPayload = clone(valid);
+  for (const collection of [
+    "records",
+    "archivedRecords",
+    "schedules",
+    "notes",
+    "expenses",
+    "auditLog",
+  ]) {
+    emptyPayload[collection] = [];
+  }
+  console.assert(
+    isValidPayload(emptyPayload),
+    "Persistence assertion 7 failed: valid empty collections were rejected.",
+  );
+
+  const originalState = clone(state);
+  const expectedIds = valid.records.map((record) => record.id);
+  applyPayload(valid);
+  const restoreSucceeded =
+    JSON.stringify(state.records.map((record) => record.id)) ===
+    JSON.stringify(expectedIds);
+  Object.assign(state, originalState);
+  console.assert(
+    restoreSucceeded,
+    "Persistence assertion 8 failed: valid data did not restore into state.",
+  );
+  console.log("Unit 8 persistence assertions completed (8 checks).");
+}
+
+document.querySelector("#btn-export-json")?.addEventListener("click", () => {
+  const payload = createStoragePayload();
+  const file = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `studyhub-backup-${new Date()
+    .toISOString()
+    .slice(0, 10)}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  showStorageStatus("JSON backup exported.");
+});
+
+document
+  .querySelector("#import-json-file")
+  ?.addEventListener("change", async (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    closeImportPreview();
+
+    try {
+      const payload = JSON.parse(await file.text());
+      if (!isValidPayload(payload)) {
+        throw new Error(
+          "The file is malformed, incomplete, or uses an unsupported schema version.",
+        );
+      }
+
+      pendingImport = payload;
+      const count = payload.records.length + payload.archivedRecords.length;
+      const previewText = document.querySelector("#import-preview-text");
+      const preview = document.querySelector("#import-preview-box");
+      if (previewText) {
+        previewText.textContent = `${count} task record(s) (${payload.records.length} active, ${payload.archivedRecords.length} archived), ${payload.schedules.length} schedule(s), ${payload.notes.length} note(s), and ${payload.expenses.length} expense(s). Backup saved ${new Date(payload.savedAt).toLocaleString()}. Confirm to replace current app data.`;
+      }
+      if (preview) preview.hidden = false;
+      showStorageStatus(
+        "Import validated. Review the preview before replacing data.",
+      );
+    } catch (error) {
+      console.error("Unable to read the selected StudyHub backup.", error);
+      showStorageStatus(
+        `Import was not prepared: ${error.message || "the file could not be read."}`,
+        true,
+      );
+    } finally {
+      input.value = "";
+    }
+  });
+
+document.querySelector("#btn-confirm-import")?.addEventListener("click", () => {
+  if (!pendingImport || !isValidPayload(pendingImport)) {
+    showStorageStatus("There is no valid import to confirm.", true);
+    closeImportPreview();
+    return;
+  }
+
+  const recordCount =
+    pendingImport.records.length + pendingImport.archivedRecords.length;
+  applyPayload(pendingImport);
+  persistenceBlocked = false;
+  logAudit("IMPORT", "application", `Imported ${recordCount} task record(s)`);
+  closeImportPreview();
+  updateThemeControls();
+  updatePreferenceControls();
+  render();
+  showStorageStatus("Backup imported and saved.");
+});
+
+document.querySelector("#btn-cancel-import")?.addEventListener("click", () => {
+  closeImportPreview();
+  showStorageStatus("Import cancelled. Current data was not changed.");
+});
+
+document.querySelector("#btn-reset-data")?.addEventListener("click", () => {
+  const box = document.querySelector("#reset-confirm-box");
+  const input = document.querySelector("#reset-confirm-input");
+  if (box) box.hidden = false;
+  if (input) {
+    input.value = "";
+    input.focus();
+  }
+  showStorageStatus(
+    "Export a backup first if you may need to recover this data. Type RESET to continue.",
+  );
+});
+
+document.querySelector("#btn-cancel-reset")?.addEventListener("click", () => {
+  const box = document.querySelector("#reset-confirm-box");
+  const input = document.querySelector("#reset-confirm-input");
+  if (box) box.hidden = true;
+  if (input) input.value = "";
+  showStorageStatus("Reset cancelled. Current data was not changed.");
+});
+
+document.querySelector("#btn-confirm-reset")?.addEventListener("click", () => {
+  const input = document.querySelector("#reset-confirm-input");
+  if (input?.value !== "RESET") {
+    showStorageStatus('Type "RESET" exactly to confirm the data reset.', true);
+    input?.focus();
+    return;
+  }
+
+  Object.assign(state, JSON.parse(JSON.stringify(DEFAULT_STATE)));
+  state.preferences.theme = "dark";
+  persistenceBlocked = false;
+  closeImportPreview();
+  const resetBox = document.querySelector("#reset-confirm-box");
+  if (resetBox) resetBox.hidden = true;
+  input.value = "";
+  logAudit("RESET", "application", "Restored default app data");
+  updateThemeControls();
+  updatePreferenceControls();
+  render();
+  showStorageStatus("App data was reset to defaults.");
+});
+
 /* Initial deterministic render */
+runPersistenceAssertions();
+runDashboardMetricAssertions();
+updatePreferenceControls();
 render();
+if (currentView === "admin") {
+  renderAdminQA(runQualityAssuranceSuite());
+}
 runStableIdAssertions();
 runWorkflowTransitionAssertions();
 
@@ -2890,7 +3864,8 @@ function renderClassroom() {
           (student) =>
             `<tr><td>${escapeHTML(student.name)}</td><td>${student.submitted}</td><td>${student.reviewed}</td></tr>`,
         )
-        .join("") || '<tr><td colspan="3">No students have joined your classrooms yet.</td></tr>';
+        .join("") ||
+      '<tr><td colspan="3">No students have joined your classrooms yet.</td></tr>';
   const subr = document.querySelector("#teacher-submission-rows");
   if (subr)
     subr.innerHTML =
@@ -2898,8 +3873,7 @@ function renderClassroom() {
         .slice()
         .sort(
           (a, b) =>
-            (Date.parse(b.submittedAt) || 0) -
-            (Date.parse(a.submittedAt) || 0),
+            (Date.parse(b.submittedAt) || 0) - (Date.parse(a.submittedAt) || 0),
         )
         .map((submission) => {
           const submittedAt = Date.parse(submission.submittedAt);
@@ -2944,10 +3918,7 @@ function renderClassroom() {
         .map((assignment) => {
           const count = assignment.submissions.length;
           const pct = assignment.studentCount
-            ? Math.min(
-                100,
-                Math.round((count / assignment.studentCount) * 100),
-              )
+            ? Math.min(100, Math.round((count / assignment.studentCount) * 100))
             : 0;
           return `<div class="bar-row"><span class="bar-label">${escapeHTML(assignment.title)} · ${escapeHTML(assignment.className)}</span><div class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></div><span class="bar-count">${count}/${assignment.studentCount}</span></div>`;
         })
@@ -2956,10 +3927,7 @@ function renderClassroom() {
 
 document.querySelector("#app")?.addEventListener("submit", (e) => {
   const form = e.target;
-  if (
-    form.matches("[data-class-submission-id]") &&
-    currentView === "teacher"
-  ) {
+  if (form.matches("[data-class-submission-id]") && currentView === "teacher") {
     e.preventDefault();
     const data = new FormData(form);
     const score = Number(data.get("score"));

@@ -72,11 +72,11 @@ a {
   text-decoration: none;
 }
 
-.brand-mark {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--auth-brand);
+.brand-logo {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .auth-form-wrap {
