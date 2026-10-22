@@ -531,13 +531,6 @@
         </section>
 
         <!-- The leader's task form is retained as the ONE authoritative task form. -->
-        <div
-          id="task-error-summary"
-          class="dashboard-wide"
-          role="alert"
-          hidden
-        ></div>
-
         <form
           id="task-form"
           class="dashboard-wide"
@@ -545,65 +538,175 @@
           novalidate
         >
           <div class="form-head">
-            <h3 id="task-form-title">Add a task</h3>
-            <p class="form-hint">
-              <span class="req" aria-hidden="true">*</span> Required
-            </p>
+            <div class="form-intro">
+              <p class="form-eyebrow">MAKE ROOM FOR WHAT MATTERS</p>
+              <h3 id="task-form-title">Add a task</h3>
+              <p class="form-description">
+                Capture the details now. You can update them whenever plans change.
+              </p>
+            </div>
+            <p class="form-hint"><span class="req" aria-hidden="true">*</span> Required</p>
           </div>
 
-          <div class="field-title">
-            <label for="task-title"
-              >Task title <span class="req" aria-hidden="true">*</span></label
-            >
-            <input
-              type="text"
-              id="task-title"
-              name="title"
-              placeholder="e.g. Finish lab report"
-              required
-            />
-          </div>
+          <div id="task-error-summary" class="error-summary" role="alert" hidden></div>
 
-          <div class="field-subject">
-            <label for="task-subject"
-              >Subject <span class="req" aria-hidden="true">*</span></label
-            >
-            <input
-              type="text"
-              id="task-subject"
-              name="subject"
-              placeholder="e.g. Calculus II"
-              required
-            />
-          </div>
+          <!-- Core required fields -->
+          <fieldset class="form-section">
+            <legend>Core details</legend>
 
-          <div class="field-due">
-            <label for="task-due"
-              >Due date <span class="req" aria-hidden="true">*</span></label
-            >
-            <input type="date" id="task-due" name="dueDate" required />
-          </div>
+            <div class="field-title">
+              <label for="task-title"
+                >Task title <span class="req" aria-hidden="true">*</span></label
+              >
+              <input
+                type="text"
+                id="task-title"
+                name="title"
+                placeholder="e.g. Finish lab report"
+                required
+                minlength="3"
+                maxlength="100"
+                aria-describedby="task-title-error"
+              />
+              <span id="task-title-error" class="inline-error" aria-live="polite"></span>
+            </div>
 
-          <div class="field-priority">
-            <label for="task-priority">Priority</label>
-            <select id="task-priority" name="priority">
-              <option value="Low">Low</option>
-              <option value="Medium" selected>Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
+            <div class="field-subject">
+              <label for="task-subject"
+                >Subject <span class="req" aria-hidden="true">*</span></label
+              >
+              <input
+                type="text"
+                id="task-subject"
+                name="subject"
+                placeholder="e.g. Calculus II"
+                required
+                minlength="2"
+                maxlength="80"
+                aria-describedby="task-subject-error"
+              />
+              <span id="task-subject-error" class="inline-error" aria-live="polite"></span>
+            </div>
 
-          <div class="field-notes">
-            <label for="task-notes">Notes</label>
-            <input
-              type="text"
-              id="task-notes"
-              name="notes"
-              placeholder="Optional details"
-            />
-          </div>
+            <div class="form-row">
+              <div class="field-due">
+                <label for="task-due"
+                  >Due date <span class="req" aria-hidden="true">*</span></label
+                >
+                <input
+                  type="date"
+                  id="task-due"
+                  name="dueDate"
+                  required
+                  min=""
+                  aria-describedby="task-due-error"
+                />
+                <span id="task-due-error" class="inline-error" aria-live="polite"></span>
+              </div>
 
-          <button type="submit">Add task</button>
+              <div class="field-priority">
+                <label for="task-priority"
+                  >Priority <span class="req" aria-hidden="true">*</span></label
+                >
+                <select id="task-priority" name="priority" required aria-describedby="task-priority-error">
+                  <option value="">Select priority</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="High">High</option>
+                </select>
+                <span id="task-priority-error" class="inline-error" aria-live="polite"></span>
+              </div>
+            </div>
+
+            <div class="field-estimated">
+              <label for="task-estimated"
+                >Estimated hours <span class="req" aria-hidden="true">*</span></label
+              >
+              <input
+                type="number"
+                id="task-estimated"
+                name="estimatedHours"
+                min="0.25"
+                max="100"
+                step="0.25"
+                value="1"
+                required
+                aria-describedby="task-estimated-error"
+              />
+              <span id="task-estimated-error" class="inline-error" aria-live="polite"></span>
+            </div>
+          </fieldset>
+
+          <!-- Optional / extra fields -->
+          <fieldset class="form-section">
+            <legend>Optional details</legend>
+
+            <div class="field-tags">
+              <label for="task-tags">Tags</label>
+              <input
+                type="text"
+                id="task-tags"
+                name="tags"
+                list="tag-suggestions"
+                placeholder="e.g. homework, lab, urgent"
+                aria-describedby="task-tags-error"
+              />
+              <datalist id="tag-suggestions">
+                <option value="homework"></option>
+                <option value="lab"></option>
+                <option value="exam"></option>
+                <option value="project"></option>
+                <option value="reading"></option>
+                <option value="urgent"></option>
+                <option value="group-work"></option>
+              </datalist>
+              <span id="task-tags-error" class="inline-error" aria-live="polite"></span>
+            </div>
+
+            <!-- Reminder section - grouped together -->
+            <div class="reminder-group" id="reminder-group">
+              <label class="reminder-toggle">
+                <input type="checkbox" id="task-has-reminder" name="hasReminder" value="1" />
+                <span class="toggle-ui">
+                  <span class="toggle-track"></span>
+                  <span class="toggle-thumb"></span>
+                </span>
+                <span class="toggle-label">Set a reminder</span>
+              </label>
+
+              <div class="field-reminder-date" id="reminder-date-field" hidden>
+                <label for="task-reminder-date"
+                  >Remind me on <span class="req" aria-hidden="true">*</span></label
+                >
+                <input
+                  type="date"
+                  id="task-reminder-date"
+                  name="reminderDate"
+                  min=""
+                  aria-describedby="task-reminder-error"
+                />
+                <span id="task-reminder-error" class="inline-error" aria-live="polite"></span>
+              </div>
+            </div>
+
+            <div class="field-notes">
+              <label for="task-notes">Notes</label>
+              <textarea
+                id="task-notes"
+                name="notes"
+                rows="3"
+                maxlength="500"
+                placeholder="Optional details"
+                aria-describedby="task-notes-error"
+              ></textarea>
+              <span id="task-notes-error" class="inline-error" aria-live="polite"></span>
+            </div>
+          </fieldset>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Add task</button>
+            <button type="button" id="task-form-reset" class="btn-secondary">Clear form</button>
+          </div>
         </form>
       </section>
 

@@ -86,9 +86,12 @@ const ROLES = AUTH.ROLES;
 
 // Dev role override: if ?dev=1 and a saved dev role exists, use it instead of real auth
 let devRoleOverride = null;
-if (new URLSearchParams(location.search).has('dev')) {
-  devRoleOverride = sessionStorage.getItem('devRoleOverride');
-  console.log('[dev-startup] devRoleOverride from sessionStorage:', devRoleOverride);
+if (new URLSearchParams(location.search).has("dev")) {
+  devRoleOverride = sessionStorage.getItem("devRoleOverride");
+  console.log(
+    "[dev-startup] devRoleOverride from sessionStorage:",
+    devRoleOverride,
+  );
 }
 
 let currentUser = null;
@@ -102,12 +105,12 @@ try {
   }
 }
 
-console.log('[dev-startup] currentUser before override:', currentUser?.role);
+console.log("[dev-startup] currentUser before override:", currentUser?.role);
 
 // Apply dev role override if present
 if (devRoleOverride && currentUser) {
   currentUser = { ...currentUser, role: devRoleOverride };
-  console.log('[dev-startup] currentUser after override:', currentUser.role);
+  console.log("[dev-startup] currentUser after override:", currentUser.role);
 }
 
 let currentView = currentUser
@@ -125,22 +128,22 @@ const session = {
 
 const CAPABILITIES = {
   // Tasks
-  TASK_VIEW_OWN:      'task:view-own',
-  TASK_CREATE:        'task:create',
-  TASK_EDIT_OWN:      'task:edit-own',
-  TASK_STATUS:        'task:status',
-  TASK_ARCHIVE:       'task:archive',
-  TASK_VIEW_ALL:      'task:view-all',
+  TASK_VIEW_OWN: "task:view-own",
+  TASK_CREATE: "task:create",
+  TASK_EDIT_OWN: "task:edit-own",
+  TASK_STATUS: "task:status",
+  TASK_ARCHIVE: "task:archive",
+  TASK_VIEW_ALL: "task:view-all",
   // Users / Admin
-  USER_MANAGE:        'user:manage',
+  USER_MANAGE: "user:manage",
   // Classrooms
-  CLASS_CREATE:       'class:create',
-  CLASS_JOIN:         'class:join',
-  CLASS_GRADE:        'class:grade',
+  CLASS_CREATE: "class:create",
+  CLASS_JOIN: "class:join",
+  CLASS_GRADE: "class:grade",
   // Analytics / Dashboards
-  ANALYTICS_VIEW:     'analytics:view',
+  ANALYTICS_VIEW: "analytics:view",
   // Features
-  POMODORO_USE:       'pomodoro:use',
+  POMODORO_USE: "pomodoro:use",
 };
 
 const ROLE_PERMISSIONS = {
@@ -185,7 +188,12 @@ if (!currentUser) {
 
 /* Remove everything the current view should not have, then reveal the page. */
 function applyRoleView() {
-  console.log('[applyRoleView] currentView:', currentView, 'currentUser.role:', currentUser?.role);
+  console.log(
+    "[applyRoleView] currentView:",
+    currentView,
+    "currentUser.role:",
+    currentUser?.role,
+  );
   document.querySelectorAll("[data-view]").forEach((element) => {
     if (!element.dataset.view.split(/\s+/).includes(currentView)) {
       element.remove();
@@ -195,7 +203,12 @@ function applyRoleView() {
   const root = document.documentElement;
   root.dataset.appView = currentView;
   if (currentUser) root.dataset.role = currentUser.role;
-  console.log('[applyRoleView] root.dataset.appView set to:', root.dataset.appView, 'root.dataset.role:', root.dataset.role);
+  console.log(
+    "[applyRoleView] root.dataset.appView set to:",
+    root.dataset.appView,
+    "root.dataset.role:",
+    root.dataset.role,
+  );
 
   if (currentUser) {
     setLabel("#user-label", currentUser.displayName);
@@ -2110,7 +2123,9 @@ function transitionTask(id, nextStatus) {
   }
 
   const isArchiving = nextStatus === "Archived";
-  const requiredCapability = isArchiving ? CAPABILITIES.TASK_ARCHIVE : CAPABILITIES.TASK_STATUS;
+  const requiredCapability = isArchiving
+    ? CAPABILITIES.TASK_ARCHIVE
+    : CAPABILITIES.TASK_STATUS;
 
   if (!allowedOn(requiredCapability, task)) {
     showMessage("You don't have permission to change this task's status.");
@@ -3018,40 +3033,284 @@ if (taskDetails) {
   });
 }
 
+/* ============================================================
+   Unit 4: Advanced Form Validation Engine for Task Form
+   ============================================================ */
+
+// Set min date for date inputs to today
+function setMinDateToday() {
+  const today = new Date().toISOString().split('T')[0];
+  const dueInput = document.querySelector('#task-due');
+  const reminderInput = document.querySelector('#task-reminder-date');
+  if (dueInput) dueInput.min = today;
+  if (reminderInput) reminderInput.min = today;
+}
+
+// Show/hide reminder date field based on checkbox
+function initReminderToggle() {
+  const checkbox = document.querySelector('#task-has-reminder');
+  const reminderField = document.querySelector('#reminder-date-field');
+  const reminderInput = document.querySelector('#task-reminder-date');
+
+  if (checkbox && reminderField) {
+    checkbox.addEventListener('change', () => {
+      const show = checkbox.checked;
+      reminderField.hidden = !show;
+      reminderInput.required = show;
+      if (!show) {
+        reminderInput.value = '';
+        clearInlineError('task-reminder-date');
+      }
+    });
+  }
+}
+
+// Clear inline error for a field
+function clearInlineError(fieldId) {
+  const errorEl = document.querySelector(`#${fieldId}-error`);
+  if (errorEl) errorEl.textContent = '';
+}
+
+// Clear all inline errors
+function clearAllInlineErrors() {
+  document.querySelectorAll('.inline-error').forEach(el => el.textContent = '');
+}
+
+// Set inline error for a field
+function setInlineError(fieldId, message) {
+  const errorEl = document.querySelector(`#${fieldId}-error`);
+  if (errorEl) errorEl.textContent = message;
+}
+
+// Show error summary with links to fields
+function showErrorSummary(errors) {
+  const summary = document.querySelector('#task-error-summary');
+  if (!summary) return;
+
+  if (!errors || errors.length === 0) {
+    summary.hidden = true;
+    summary.innerHTML = '';
+    return;
+  }
+
+  const list = errors.map(err =>
+    `<li><a href="#${err.field}" onclick="document.getElementById('${err.field}').focus()">${err.message}</a></li>`
+  ).join('');
+
+  summary.innerHTML = `<strong>Please fix the following errors:</strong><ul>${list}</ul>`;
+  summary.hidden = false;
+  summary.focus();
+}
+
+// Hide error summary
+function hideErrorSummary() {
+  const summary = document.querySelector('#task-error-summary');
+  if (summary) {
+    summary.hidden = true;
+    summary.innerHTML = '';
+  }
+}
+
+// Validation rules
+function validateTaskForm(formData) {
+  const errors = [];
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+
+  // Get all values
+  const title = String(formData.get('title') ?? '').trim();
+  const subject = String(formData.get('subject') ?? '').trim();
+  const dueDate = String(formData.get('dueDate') ?? '');
+  const priority = String(formData.get('priority') ?? '');
+  const estimatedHours = String(formData.get('estimatedHours') ?? '');
+  const tags = String(formData.get('tags') ?? '').trim();
+  const hasReminder = formData.get('hasReminder') === '1';
+  const reminderDate = String(formData.get('reminderDate') ?? '');
+  const notes = String(formData.get('notes') ?? '').trim();
+
+  // --- Native HTML5 validation is handled by browser ---
+  // We add custom JS rules below
+
+  // --- JS Field Rules (4+) ---
+
+  // 1. Title: no special characters only, reasonable length
+  if (title.length > 0 && title.length < 3) {
+    errors.push({ field: 'task-title', message: 'Title must be at least 3 characters.' });
+    setInlineError('task-title', 'At least 3 characters required.');
+  } else if (title.length > 100) {
+    errors.push({ field: 'task-title', message: 'Title cannot exceed 100 characters.' });
+    setInlineError('task-title', 'Maximum 100 characters.');
+  } else {
+    clearInlineError('task-title');
+  }
+
+  // 2. Subject: alphanumeric + spaces, reasonable length
+  if (subject.length > 0 && subject.length < 2) {
+    errors.push({ field: 'task-subject', message: 'Subject must be at least 2 characters.' });
+    setInlineError('task-subject', 'At least 2 characters required.');
+  } else if (subject.length > 80) {
+    errors.push({ field: 'task-subject', message: 'Subject cannot exceed 80 characters.' });
+    setInlineError('task-subject', 'Maximum 80 characters.');
+  } else {
+    clearInlineError('task-subject');
+  }
+
+  // 3. Estimated hours: must be valid number within range
+  const estHours = parseFloat(estimatedHours);
+  if (isNaN(estHours) || estHours < 0.25 || estHours > 100) {
+    errors.push({ field: 'task-estimated', message: 'Estimated hours must be between 0.25 and 100.' });
+    setInlineError('task-estimated', 'Enter 0.25 to 100 hours.');
+  } else {
+    clearInlineError('task-estimated');
+  }
+
+  // 4. Tags: validate format (comma-separated, no special chars except hyphen)
+  if (tags && !/^[\w\s,-]+$/.test(tags)) {
+    errors.push({ field: 'task-tags', message: 'Tags can only contain letters, numbers, spaces, commas, and hyphens.' });
+    setInlineError('task-tags', 'Invalid characters in tags.');
+  } else {
+    clearInlineError('task-tags');
+  }
+
+  // --- Cross-field Rules (2+) ---
+
+  // 5. Due date must not be in the past
+  if (dueDate && dueDate < today) {
+    errors.push({ field: 'task-due', message: 'Due date cannot be in the past.' });
+    setInlineError('task-due', 'Due date must be today or later.');
+  } else {
+    clearInlineError('task-due');
+  }
+
+  // 6. Reminder date (if set) must be before or equal to due date
+  if (hasReminder && reminderDate && dueDate && reminderDate > dueDate) {
+    errors.push({ field: 'task-reminder-date', message: 'Reminder date must be on or before the due date.' });
+    setInlineError('task-reminder-date', 'Reminder cannot be after due date.');
+  } else {
+    clearInlineError('task-reminder-date');
+  }
+
+  // --- Conditional Required Field ---
+
+  // 7. Reminder date is required when reminder checkbox is checked
+  if (hasReminder && !reminderDate) {
+    errors.push({ field: 'task-reminder-date', message: 'Reminder date is required when reminder is enabled.' });
+    setInlineError('task-reminder-date', 'Please select a reminder date.');
+  }
+
+  // --- Duplicate Detection ---
+
+  // 8. Check for duplicate task (same title + subject + dueDate)
+  const isDuplicate = state.records.some(task =>
+    task.title.toLowerCase() === title.toLowerCase() &&
+    task.subject.toLowerCase() === subject.toLowerCase() &&
+    task.dueDate === dueDate
+  );
+
+  if (isDuplicate) {
+    errors.push({ field: 'task-title', message: 'A task with this title, subject, and due date already exists.' });
+    setInlineError('task-title', 'Duplicate task detected.');
+  }
+
+  // Additional validation: priority required
+  if (!priority) {
+    errors.push({ field: 'task-priority', message: 'Please select a priority.' });
+    setInlineError('task-priority', 'Priority is required.');
+  } else {
+    clearInlineError('task-priority');
+  }
+
+  // Notes length
+  if (notes.length > 500) {
+    errors.push({ field: 'task-notes', message: 'Notes cannot exceed 500 characters.' });
+    setInlineError('task-notes', 'Maximum 500 characters.');
+  } else {
+    clearInlineError('task-notes');
+  }
+
+  return errors;
+}
+
 const taskForm = document.querySelector("#task-form");
 
 if (taskForm) {
+  // Initialize on load
+  setMinDateToday();
+  initReminderToggle();
+
+  // Reset button handler
+  const resetBtn = document.querySelector('#task-form-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      taskForm.reset();
+      clearAllInlineErrors();
+      hideErrorSummary();
+      setMinDateToday();
+      const reminderField = document.querySelector('#reminder-date-field');
+      if (reminderField) reminderField.hidden = true;
+      const checkbox = document.querySelector('#task-has-reminder');
+      if (checkbox) checkbox.checked = false;
+    });
+  }
+
   taskForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
+    // Clear previous errors
+    clearAllInlineErrors();
+
     const formData = new FormData(taskForm);
+    const errors = validateTaskForm(formData);
+
+    if (errors.length > 0) {
+      showErrorSummary(errors);
+      // Focus first error field
+      const firstErrorField = document.querySelector(`#${errors[0].field}`);
+      if (firstErrorField) firstErrorField.focus();
+      return;
+    }
+
+    // Validation passed
+    hideErrorSummary();
+
     const title = String(formData.get("title") ?? "").trim();
     const subject = String(formData.get("subject") ?? "").trim();
     const dueDate = String(formData.get("dueDate") ?? "");
     const priority = String(formData.get("priority") ?? "Medium");
+    const estimatedHours = parseFloat(String(formData.get("estimatedHours") ?? "1"));
+    const tags = String(formData.get("tags") ?? "").trim();
+    const hasReminder = formData.get("hasReminder") === "1";
+    const reminderDate = hasReminder ? String(formData.get("reminderDate") ?? "") : "";
     const notes = String(formData.get("notes") ?? "").trim();
-
-    if (!title || !subject || !dueDate) {
-      showTaskError("Title, subject, and due date are required.");
-      return;
-    }
-
-    hideTaskError();
 
     const added = addTask({
       id: generateTaskId(),
       title,
       subject,
-      description: notes || "Added from the Unit 3 task form.",
+      description: notes || "Added from the task form.",
       dueDate,
       priority,
       status: "To do",
       createdAt: new Date().toISOString(),
-      estimatedMinutes: 30,
+      estimatedMinutes: Math.round(estimatedHours * 60),
       workflowHistory: [],
+      // Store extra fields
+      tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      hasReminder,
+      reminderDate: reminderDate || null,
     });
 
-    if (added) taskForm.reset();
+    if (added) {
+      showMessage(`Task "${title}" added successfully!`);
+      taskForm.reset();
+      // Reset min dates after form reset
+      setMinDateToday();
+      // Hide reminder field after reset
+      const reminderField = document.querySelector('#reminder-date-field');
+      if (reminderField) reminderField.hidden = true;
+      const checkbox = document.querySelector('#task-has-reminder');
+      if (checkbox) checkbox.checked = false;
+    }
   });
 }
 
@@ -4095,28 +4354,28 @@ clearLegacyTeacherSamples();
 renderClassroom();
 
 /* Dev-only role switch — only enable when ?dev=1 in URL */
-if (new URLSearchParams(location.search).has('dev')) {
-  const devSwitch = document.querySelector('#dev-role-switch');
-  const devSelect = document.querySelector('#dev-role');
+if (new URLSearchParams(location.search).has("dev")) {
+  const devSwitch = document.querySelector("#dev-role-switch");
+  const devSelect = document.querySelector("#dev-role");
   if (devSwitch && devSelect) {
-    devSwitch.style.display = 'flex';
+    devSwitch.style.display = "flex";
     // Set dropdown to current effective role (real or override)
     devSelect.value = session.role;
-    devSelect.addEventListener('change', () => {
+    devSelect.addEventListener("change", () => {
       const role = devSelect.value;
-      if (role === '__clear__') {
+      if (role === "__clear__") {
         // Clear override, return to real role
-        sessionStorage.removeItem('devRoleOverride');
+        sessionStorage.removeItem("devRoleOverride");
         // Also sync in-memory session immediately so guards work NOW
         const realUser = AUTH.getSessionUser();
         if (realUser) {
           session.role = realUser.role;
           currentUser = { ...realUser };
         }
-        showMessage('Dev override cleared. Reloading as real role…');
+        showMessage("Dev override cleared. Reloading as real role…");
       } else {
         // Persist dev role override so it survives page reload
-        sessionStorage.setItem('devRoleOverride', role);
+        sessionStorage.setItem("devRoleOverride", role);
         // IMMEDIATELY sync in-memory session so allowed() works NOW (before reload)
         session.role = role;
         currentUser = { ...currentUser, role };
@@ -4126,13 +4385,13 @@ if (new URLSearchParams(location.search).has('dev')) {
       setTimeout(() => {
         try {
           // Use location.reload() to force navigation even if URL unchanged
-          console.log('[dev-switch] Forcing reload...');
+          console.log("[dev-switch] Forcing reload...");
           location.reload();
         } catch (e) {
-          console.error('[dev-switch] Reload failed:', e);
-          showMessage('Reload failed. Check console.');
+          console.error("[dev-switch] Reload failed:", e);
+          showMessage("Reload failed. Check console.");
         }
-      }, 10000);
+      }, 0.2);
     });
   }
 }
