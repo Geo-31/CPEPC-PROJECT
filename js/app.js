@@ -83,8 +83,15 @@ const TRANSITION_CONDITIONS = {
 
 const AUTH = window.StudyHubAuth;
 const ROLES = AUTH.ROLES;
-let currentUser = null;
 
+// Dev role override: if ?dev=1 and a saved dev role exists, use it instead of real auth
+let devRoleOverride = null;
+if (new URLSearchParams(location.search).has('dev')) {
+  devRoleOverride = sessionStorage.getItem('devRoleOverride');
+  console.log('[dev-startup] devRoleOverride from sessionStorage:', devRoleOverride);
+}
+
+let currentUser = null;
 try {
   currentUser = AUTH.getSessionUser();
 } catch (error) {
@@ -95,7 +102,15 @@ try {
   }
 }
 
-const currentView = currentUser
+console.log('[dev-startup] currentUser before override:', currentUser?.role);
+
+// Apply dev role override if present
+if (devRoleOverride && currentUser) {
+  currentUser = { ...currentUser, role: devRoleOverride };
+  console.log('[dev-startup] currentUser after override:', currentUser.role);
+}
+
+let currentView = currentUser
   ? (ROLES[currentUser.role]?.view ?? "student")
   : "guest";
 const session = {
@@ -104,12 +119,73 @@ const session = {
   role: currentUser?.role ?? null,
 };
 
+/* -----------------------------
+   Unit 7: Central Permission Model
+   ----------------------------- */
+
+const CAPABILITIES = {
+  // Tasks
+  TASK_VIEW_OWN:      'task:view-own',
+  TASK_CREATE:        'task:create',
+  TASK_EDIT_OWN:      'task:edit-own',
+  TASK_STATUS:        'task:status',
+  TASK_ARCHIVE:       'task:archive',
+  TASK_VIEW_ALL:      'task:view-all',
+  // Users / Admin
+  USER_MANAGE:        'user:manage',
+  // Classrooms
+  CLASS_CREATE:       'class:create',
+  CLASS_JOIN:         'class:join',
+  CLASS_GRADE:        'class:grade',
+  // Analytics / Dashboards
+  ANALYTICS_VIEW:     'analytics:view',
+  // Features
+  POMODORO_USE:       'pomodoro:use',
+};
+
+const ROLE_PERMISSIONS = {
+  student: new Set([
+    CAPABILITIES.TASK_VIEW_OWN,
+    CAPABILITIES.TASK_CREATE,
+    CAPABILITIES.TASK_EDIT_OWN,
+    CAPABILITIES.TASK_STATUS,
+    CAPABILITIES.TASK_ARCHIVE,
+    CAPABILITIES.CLASS_JOIN,
+    CAPABILITIES.POMODORO_USE,
+  ]),
+  teacher: new Set([
+    CAPABILITIES.TASK_VIEW_OWN,
+    CAPABILITIES.TASK_EDIT_OWN,
+    CAPABILITIES.TASK_STATUS,
+    CAPABILITIES.TASK_ARCHIVE,
+    CAPABILITIES.CLASS_CREATE,
+    CAPABILITIES.CLASS_GRADE,
+    CAPABILITIES.ANALYTICS_VIEW,
+  ]),
+  admin: new Set(Object.values(CAPABILITIES)),
+};
+
+/** Single source of truth for "can this role do X?" */
+function allowed(capability) {
+  return ROLE_PERMISSIONS[session.role]?.has(capability) ?? false;
+}
+
+/** Ownership-aware check for record-scoped capabilities */
+function allowedOn(capability, task) {
+  if (!allowed(capability)) return false;
+  if (capability === CAPABILITIES.TASK_EDIT_OWN) return canEditTask(task);
+  if (capability === CAPABILITIES.TASK_STATUS) return canEditTask(task);
+  if (capability === CAPABILITIES.TASK_ARCHIVE) return canEditTask(task);
+  return true; // non-ownership capabilities
+}
+
 if (!currentUser) {
   window.location.replace("login.html");
 }
 
 /* Remove everything the current view should not have, then reveal the page. */
 function applyRoleView() {
+  console.log('[applyRoleView] currentView:', currentView, 'currentUser.role:', currentUser?.role);
   document.querySelectorAll("[data-view]").forEach((element) => {
     if (!element.dataset.view.split(/\s+/).includes(currentView)) {
       element.remove();
@@ -119,6 +195,7 @@ function applyRoleView() {
   const root = document.documentElement;
   root.dataset.appView = currentView;
   if (currentUser) root.dataset.role = currentUser.role;
+  console.log('[applyRoleView] root.dataset.appView set to:', root.dataset.appView, 'root.dataset.role:', root.dataset.role);
 
   if (currentUser) {
     setLabel("#user-label", currentUser.displayName);
@@ -1055,7 +1132,7 @@ function renderRecords(records) {
           <td>
             <div class="task-actions">
               <button type="button" data-action="view" data-id="${escapeHTML(task.id)}">View</button>
-              ${canEditTask(task) ? `<button type="button" data-action="edit" data-id="${escapeHTML(task.id)}">Edit</button>` : ""}
+              ${allowedOn(CAPABILITIES.TASK_EDIT_OWN, task) && canEditTask(task) ? `<button type="button" data-action="edit" data-id="${escapeHTML(task.id)}">Edit</button>` : ""}
               ${getAvailableTransitions(task)
                 .filter(([, transition]) => transition.row)
                 .map(
@@ -1864,7 +1941,7 @@ function renderDetails() {
             `,
           )
           .join("")}
-        ${canEditTask(task) ? `<button type="button" data-action="edit" data-id="${escapeHTML(task.id)}">Edit task</button>` : ""}
+        ${allowedOn(CAPABILITIES.TASK_EDIT_OWN, task) && canEditTask(task) ? `<button type="button" data-action="edit" data-id="${escapeHTML(task.id)}">Edit task</button>` : ""}
       </div>`;
 
   details.innerHTML = `
@@ -1985,6 +2062,11 @@ function generateTaskId() {
 }
 
 function addTask(task) {
+  if (!allowed(CAPABILITIES.TASK_CREATE)) {
+    showMessage("You don't have permission to create tasks.");
+    return false;
+  }
+
   state.records = [...state.records, task];
   logAudit("CREATE", task.id, task.title);
   state.page = 1;
@@ -1995,7 +2077,7 @@ function addTask(task) {
 function updateTask(id, updates) {
   const task = state.records.find((record) => record.id === id);
 
-  if (!task || !canEditTask(task)) {
+  if (!task || !allowedOn(CAPABILITIES.TASK_EDIT_OWN, task)) {
     showMessage("Completed tasks can't be edited.");
     return false;
   }
@@ -2024,6 +2106,14 @@ function transitionTask(id, nextStatus) {
         ? "Archived tasks can't be changed."
         : `Task "${id}" was not found.`,
     );
+    return false;
+  }
+
+  const isArchiving = nextStatus === "Archived";
+  const requiredCapability = isArchiving ? CAPABILITIES.TASK_ARCHIVE : CAPABILITIES.TASK_STATUS;
+
+  if (!allowedOn(requiredCapability, task)) {
+    showMessage("You don't have permission to change this task's status.");
     return false;
   }
 
@@ -2155,6 +2245,8 @@ function validateSchedule(entry, ignoreId = null) {
 }
 
 function addSchedule(entry) {
+  if (!allowed(CAPABILITIES.CLASS_CREATE)) return "Not permitted.";
+
   const error = validateSchedule(entry);
   if (error) return error;
 
@@ -2172,6 +2264,8 @@ function addSchedule(entry) {
 }
 
 function updateSchedule(id, updates) {
+  if (!allowed(CAPABILITIES.CLASS_CREATE)) return "Not permitted.";
+
   const existing = state.schedules.find((item) => item.id === id);
   if (!existing) return `Schedule "${id}" was not found.`;
 
@@ -2190,6 +2284,8 @@ function updateSchedule(id, updates) {
 }
 
 function deleteSchedule(id) {
+  if (!allowed(CAPABILITIES.CLASS_CREATE)) return false;
+
   const existing = state.schedules.find((item) => item.id === id);
   if (!existing) {
     showMessage(`Schedule "${id}" was not found.`);
@@ -2810,7 +2906,17 @@ if (taskList) {
 
       if (action === "edit") {
         const task = state.records.find((record) => record.id === id);
-        if (!task || !canEditTask(task)) {
+        if (!task) {
+          showMessage(`Task "${id}" was not found.`);
+          return;
+        }
+        // Permission + ownership guard
+        if (!allowedOn(CAPABILITIES.TASK_EDIT_OWN, task)) {
+          showMessage("You don't have permission to edit this task.");
+          return;
+        }
+        // Workflow state guard
+        if (!canEditTask(task)) {
           showMessage("Completed tasks can't be edited.");
           return;
         }
@@ -2893,7 +2999,15 @@ if (taskDetails) {
     const task = state.records.find(
       (record) => record.id === actionButton.dataset.id,
     );
-    if (!task || !canEditTask(task)) {
+    if (!task) return;
+
+    // Permission + ownership guard
+    if (!allowedOn(CAPABILITIES.TASK_EDIT_OWN, task)) {
+      showMessage("You don't have permission to edit this task.");
+      return;
+    }
+    // Workflow state guard
+    if (!canEditTask(task)) {
       showMessage("Completed tasks can't be edited.");
       return;
     }
@@ -2924,7 +3038,7 @@ if (taskForm) {
 
     hideTaskError();
 
-    addTask({
+    const added = addTask({
       id: generateTaskId(),
       title,
       subject,
@@ -2937,7 +3051,7 @@ if (taskForm) {
       workflowHistory: [],
     });
 
-    taskForm.reset();
+    if (added) taskForm.reset();
   });
 }
 
@@ -3979,3 +4093,46 @@ window.addEventListener("studyhub:classrooms-updated", () => {
 if (syncClassroomAssignments()) render();
 clearLegacyTeacherSamples();
 renderClassroom();
+
+/* Dev-only role switch — only enable when ?dev=1 in URL */
+if (new URLSearchParams(location.search).has('dev')) {
+  const devSwitch = document.querySelector('#dev-role-switch');
+  const devSelect = document.querySelector('#dev-role');
+  if (devSwitch && devSelect) {
+    devSwitch.style.display = 'flex';
+    // Set dropdown to current effective role (real or override)
+    devSelect.value = session.role;
+    devSelect.addEventListener('change', () => {
+      const role = devSelect.value;
+      if (role === '__clear__') {
+        // Clear override, return to real role
+        sessionStorage.removeItem('devRoleOverride');
+        // Also sync in-memory session immediately so guards work NOW
+        const realUser = AUTH.getSessionUser();
+        if (realUser) {
+          session.role = realUser.role;
+          currentUser = { ...realUser };
+        }
+        showMessage('Dev override cleared. Reloading as real role…');
+      } else {
+        // Persist dev role override so it survives page reload
+        sessionStorage.setItem('devRoleOverride', role);
+        // IMMEDIATELY sync in-memory session so allowed() works NOW (before reload)
+        session.role = role;
+        currentUser = { ...currentUser, role };
+        showMessage(`Dev role → ${role}. Guards active. Reloading in 10s…`);
+      }
+      // Small delay so you can test immediate guards, then FORCE reload
+      setTimeout(() => {
+        try {
+          // Use location.reload() to force navigation even if URL unchanged
+          console.log('[dev-switch] Forcing reload...');
+          location.reload();
+        } catch (e) {
+          console.error('[dev-switch] Reload failed:', e);
+          showMessage('Reload failed. Check console.');
+        }
+      }, 10000);
+    });
+  }
+}

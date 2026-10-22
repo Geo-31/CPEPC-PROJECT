@@ -58,6 +58,17 @@
         <span id="user-role" class="status-pill status-todo"></span>
         <button type="button" id="logout-btn">Sign out</button>
       </div>
+
+      <!-- Dev-only role switch (shows when ?dev=1 in URL) -->
+      <div id="dev-role-switch" class="dev-only" style="display:none; margin-left:1rem; align-items:center; gap:0.5rem;">
+        <label for="dev-role" style="font-size:0.875rem;">Simulate role:</label>
+        <select id="dev-role" style="padding:0.25rem 0.5rem; font-size:0.875rem;">
+          <option value="student">Student</option>
+          <option value="teacher">Teacher</option>
+          <option value="admin">Admin</option>
+          <option value="__clear__">Real Role (Clear Override)</option>
+        </select>
+      </div>
     </header>
 
     <nav
