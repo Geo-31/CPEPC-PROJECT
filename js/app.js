@@ -977,6 +977,32 @@ function showMessage(message) {
   messageRegion.hidden = false;
 }
 
+// Toast notification - shows a temporary message that auto-dismisses
+function showToast(message, duration = 2000) {
+  const container = document.querySelector("#toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.setAttribute("role", "alert");
+  toast.setAttribute("aria-live", "polite");
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // Trigger animation
+  requestAnimationFrame(() => {
+    toast.classList.add("toast-show");
+  });
+
+  // Auto-dismiss
+  setTimeout(() => {
+    toast.classList.remove("toast-show");
+    toast.classList.add("toast-hide");
+    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+  }, duration);
+}
+
 function matchesQuery(task) {
   const query = normalize(state.query);
 
@@ -3069,17 +3095,25 @@ function initReminderToggle() {
 function clearInlineError(fieldId) {
   const errorEl = document.querySelector(`#${fieldId}-error`);
   if (errorEl) errorEl.textContent = '';
+  const field = document.getElementById(fieldId);
+  if (field) field.removeAttribute('aria-invalid');
 }
 
 // Clear all inline errors
 function clearAllInlineErrors() {
-  document.querySelectorAll('.inline-error').forEach(el => el.textContent = '');
+  document.querySelectorAll('.inline-error').forEach(el => {
+    el.textContent = '';
+    const field = document.getElementById(el.id.replace(/-error$/, ''));
+    if (field) field.removeAttribute('aria-invalid');
+  });
 }
 
 // Set inline error for a field
 function setInlineError(fieldId, message) {
   const errorEl = document.querySelector(`#${fieldId}-error`);
   if (errorEl) errorEl.textContent = message;
+  const field = document.getElementById(fieldId);
+  if (field) field.setAttribute('aria-invalid', 'true');
 }
 
 // Show error summary with links to fields
@@ -3093,11 +3127,24 @@ function showErrorSummary(errors) {
     return;
   }
 
-  const list = errors.map(err =>
-    `<li><a href="#${err.field}" onclick="document.getElementById('${err.field}').focus()">${err.message}</a></li>`
-  ).join('');
+  const title = document.createElement('strong');
+  const issueLabel = errors.length === 1 ? 'issue' : 'issues';
+  title.textContent = `Fix ${errors.length} ${issueLabel} to add this task`;
 
-  summary.innerHTML = `<strong>Please fix the following errors:</strong><ul>${list}</ul>`;
+  const description = document.createElement('p');
+  description.textContent = 'Choose an item below to jump to the field that needs attention.';
+
+  const list = document.createElement('ul');
+  errors.forEach(err => {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = `#${err.field}`;
+    link.textContent = err.message;
+    item.append(link);
+    list.append(item);
+  });
+
+  summary.replaceChildren(title, description, list);
   summary.hidden = false;
   summary.focus();
 }
@@ -3107,7 +3154,7 @@ function hideErrorSummary() {
   const summary = document.querySelector('#task-error-summary');
   if (summary) {
     summary.hidden = true;
-    summary.innerHTML = '';
+    summary.replaceChildren();
   }
 }
 
@@ -3133,8 +3180,11 @@ function validateTaskForm(formData) {
 
   // --- JS Field Rules (4+) ---
 
-  // 1. Title: no special characters only, reasonable length
-  if (title.length > 0 && title.length < 3) {
+  // 1. Title: required, no special characters only, reasonable length
+  if (!title) {
+    errors.push({ field: 'task-title', message: 'Title is required.' });
+    setInlineError('task-title', 'Required.');
+  } else if (title.length < 3) {
     errors.push({ field: 'task-title', message: 'Title must be at least 3 characters.' });
     setInlineError('task-title', 'At least 3 characters required.');
   } else if (title.length > 100) {
@@ -3144,8 +3194,11 @@ function validateTaskForm(formData) {
     clearInlineError('task-title');
   }
 
-  // 2. Subject: alphanumeric + spaces, reasonable length
-  if (subject.length > 0 && subject.length < 2) {
+  // 2. Subject: required, alphanumeric + spaces, reasonable length
+  if (!subject) {
+    errors.push({ field: 'task-subject', message: 'Subject is required.' });
+    setInlineError('task-subject', 'Required.');
+  } else if (subject.length < 2) {
     errors.push({ field: 'task-subject', message: 'Subject must be at least 2 characters.' });
     setInlineError('task-subject', 'At least 2 characters required.');
   } else if (subject.length > 80) {
@@ -3155,13 +3208,37 @@ function validateTaskForm(formData) {
     clearInlineError('task-subject');
   }
 
-  // 3. Estimated hours: must be valid number within range
-  const estHours = parseFloat(estimatedHours);
-  if (isNaN(estHours) || estHours < 0.25 || estHours > 100) {
-    errors.push({ field: 'task-estimated', message: 'Estimated hours must be between 0.25 and 100.' });
-    setInlineError('task-estimated', 'Enter 0.25 to 100 hours.');
+  // 3. Due date: required, must not be in the past
+  if (!dueDate) {
+    errors.push({ field: 'task-due', message: 'Due date is required.' });
+    setInlineError('task-due', 'Required.');
+  } else if (dueDate < today) {
+    errors.push({ field: 'task-due', message: 'Due date cannot be in the past.' });
+    setInlineError('task-due', 'Due date must be today or later.');
   } else {
-    clearInlineError('task-estimated');
+    clearInlineError('task-due');
+  }
+
+  // 4. Priority: required
+  if (!priority) {
+    errors.push({ field: 'task-priority', message: 'Priority is required.' });
+    setInlineError('task-priority', 'Required.');
+  } else {
+    clearInlineError('task-priority');
+  }
+
+  // 5. Estimated hours: required, must be valid number within range
+  if (!estimatedHours) {
+    errors.push({ field: 'task-estimated', message: 'Estimated hours is required.' });
+    setInlineError('task-estimated', 'Required.');
+  } else {
+    const estHours = parseFloat(estimatedHours);
+    if (isNaN(estHours) || estHours < 0.25 || estHours > 100) {
+      errors.push({ field: 'task-estimated', message: 'Estimated hours must be between 0.25 and 100.' });
+      setInlineError('task-estimated', 'Enter 0.25 to 100 hours.');
+    } else {
+      clearInlineError('task-estimated');
+    }
   }
 
   // 4. Tags: validate format (comma-separated, no special chars except hyphen)
@@ -3174,15 +3251,7 @@ function validateTaskForm(formData) {
 
   // --- Cross-field Rules (2+) ---
 
-  // 5. Due date must not be in the past
-  if (dueDate && dueDate < today) {
-    errors.push({ field: 'task-due', message: 'Due date cannot be in the past.' });
-    setInlineError('task-due', 'Due date must be today or later.');
-  } else {
-    clearInlineError('task-due');
-  }
-
-  // 6. Reminder date (if set) must be before or equal to due date
+  // 5. Reminder date (if set) must be before or equal to due date
   if (hasReminder && reminderDate && dueDate && reminderDate > dueDate) {
     errors.push({ field: 'task-reminder-date', message: 'Reminder date must be on or before the due date.' });
     setInlineError('task-reminder-date', 'Reminder cannot be after due date.');
@@ -3192,7 +3261,7 @@ function validateTaskForm(formData) {
 
   // --- Conditional Required Field ---
 
-  // 7. Reminder date is required when reminder checkbox is checked
+  // 6. Reminder date is required when reminder checkbox is checked
   if (hasReminder && !reminderDate) {
     errors.push({ field: 'task-reminder-date', message: 'Reminder date is required when reminder is enabled.' });
     setInlineError('task-reminder-date', 'Please select a reminder date.');
@@ -3200,7 +3269,7 @@ function validateTaskForm(formData) {
 
   // --- Duplicate Detection ---
 
-  // 8. Check for duplicate task (same title + subject + dueDate)
+  // 7. Check for duplicate task (same title + subject + dueDate)
   const isDuplicate = state.records.some(task =>
     task.title.toLowerCase() === title.toLowerCase() &&
     task.subject.toLowerCase() === subject.toLowerCase() &&
@@ -3210,14 +3279,6 @@ function validateTaskForm(formData) {
   if (isDuplicate) {
     errors.push({ field: 'task-title', message: 'A task with this title, subject, and due date already exists.' });
     setInlineError('task-title', 'Duplicate task detected.');
-  }
-
-  // Additional validation: priority required
-  if (!priority) {
-    errors.push({ field: 'task-priority', message: 'Please select a priority.' });
-    setInlineError('task-priority', 'Priority is required.');
-  } else {
-    clearInlineError('task-priority');
   }
 
   // Notes length
@@ -3264,9 +3325,6 @@ if (taskForm) {
 
     if (errors.length > 0) {
       showErrorSummary(errors);
-      // Focus first error field
-      const firstErrorField = document.querySelector(`#${errors[0].field}`);
-      if (firstErrorField) firstErrorField.focus();
       return;
     }
 
@@ -3301,7 +3359,7 @@ if (taskForm) {
     });
 
     if (added) {
-      showMessage(`Task "${title}" added successfully!`);
+      showToast(`Task "${title}" added successfully!`);
       taskForm.reset();
       // Reset min dates after form reset
       setMinDateToday();
